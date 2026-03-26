@@ -10,6 +10,7 @@ export interface UserProfile {
   carrera_nombre?: string;
   semestre_actual: number;
   email: string;
+  tutorial_visto: boolean;
 }
 
 interface AuthContextType {
@@ -26,6 +27,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   refreshProfile: () => Promise<void>;
+  markTutorialSeen: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -35,15 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string, email: string) => {
-    const { data, error } = await supabase
+  const fetchProfile = useCallback(async (userId: string, email: string): Promise<UserProfile | null> => {
+    const { data } = await supabase
       .from("usuarios")
       .select("*, carreras(nombre)")
       .eq("id", userId)
       .maybeSingle();
 
     if (data) {
-      setProfile({
+      const p: UserProfile = {
         id: data.id,
         nombre: data.nombre,
         codigo_estudiantil: data.codigo_estudiantil,
@@ -51,39 +53,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         carrera_nombre: (data.carreras as any)?.nombre || "",
         semestre_actual: data.semestre_actual,
         email,
-      });
+        tutorial_visto: (data as any).tutorial_visto ?? false,
+      };
+      setProfile(p);
+      return p;
     }
+    return null;
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Set up listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        // Use setTimeout to avoid deadlock with Supabase auth
-        setTimeout(() => fetchProfile(session.user.id, session.user.email || ""), 0);
+        // Defer to avoid Supabase auth deadlock
+        setTimeout(() => {
+          if (mounted) fetchProfile(session.user.id, session.user.email || "");
+        }, 0);
       } else {
         setUser(null);
         setProfile(null);
       }
-      setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Then get initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id, session.user.email || "");
+        await fetchProfile(session.user.id, session.user.email || "");
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, message: error.message };
+
+    // Eagerly fetch profile so isAuthenticated is true immediately
+    if (data.user) {
+      setUser(data.user);
+      await fetchProfile(data.user.id, data.user.email || "");
+    }
+
     return { success: true, message: "Inicio de sesión exitoso" };
-  }, []);
+  }, [fetchProfile]);
 
   const register = useCallback(async (
     email: string,
@@ -103,7 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { success: false, message: error.message };
     if (!data.user) return { success: false, message: "Error al crear usuario" };
 
-    // Insert profile
     const { error: profileError } = await supabase.from("usuarios").insert({
       id: data.user.id,
       nombre: profileData.nombre,
@@ -114,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (profileError) return { success: false, message: profileError.message };
 
-    // Sign out so user goes to login
     await supabase.auth.signOut();
 
     return { success: true, message: "Registro exitoso. Inicia sesión." };
@@ -130,11 +151,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await fetchProfile(user.id, user.email || "");
   }, [user, fetchProfile]);
 
+  const markTutorialSeen = useCallback(async () => {
+    if (!user) return;
+    await supabase.from("usuarios").update({ tutorial_visto: true } as any).eq("id", user.id);
+    setProfile(prev => prev ? { ...prev, tutorial_visto: true } : null);
+  }, [user]);
+
   return (
     <AuthContext.Provider value={{
       user, profile, loading, login, register, logout,
       isAuthenticated: !!user && !!profile,
       refreshProfile,
+      markTutorialSeen,
     }}>
       {children}
     </AuthContext.Provider>

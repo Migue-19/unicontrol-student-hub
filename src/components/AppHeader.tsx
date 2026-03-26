@@ -7,6 +7,7 @@ const navItems = [
   { label: "Inicio", path: "/dashboard" },
   { label: "Catálogo", path: "/catalog" },
   { label: "Mis Materias", path: "/my-subjects" },
+  { label: "Cancelar Materias", path: "/cancel-subjects" },
   { label: "Perfil", path: "/profile" },
 ];
 

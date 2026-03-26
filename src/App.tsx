@@ -9,6 +9,7 @@ import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import Catalog from "@/pages/Catalog";
 import MySubjects from "@/pages/MySubjects";
+import CancelSubjects from "@/pages/CancelSubjects";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
 import AIChatBot from "@/components/AIChatBot";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><OnboardingTutorial /><Dashboard /></ProtectedRoute>} />
             <Route path="/catalog" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
             <Route path="/my-subjects" element={<ProtectedRoute><MySubjects /></ProtectedRoute>} />
+            <Route path="/cancel-subjects" element={<ProtectedRoute><CancelSubjects /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { MessageCircle, X, Send, Bot } from "lucide-react";
 
 interface Message {
@@ -11,7 +12,7 @@ interface Message {
 
 const appKnowledge: Record<string, string> = {
   inscribir: "Para inscribir materias, ve al **Catálogo de Materias** desde el menú o dashboard. Filtra por carrera y semestre, y haz clic en 'Inscribir' en la materia deseada.",
-  cancelar: "Para cancelar una materia, ve a **Mis Materias** y haz clic en el botón 'Cancelar' junto a la materia que deseas eliminar. El cupo se libera automáticamente.",
+  cancelar: "Para cancelar una materia, ve a **Cancelar Materias** desde el menú o dashboard. Haz clic en el botón 'Cancelar' junto a la materia que deseas eliminar. El cupo se libera automáticamente.",
   creditos: "El máximo de créditos permitidos por semestre es **21**. Puedes ver tus créditos actuales en el dashboard o en 'Mis Materias'.",
   cupos: "Los cupos disponibles se muestran en la columna 'Cupos' del catálogo. Si una materia muestra 0 cupos, aparecerá como 'Sin cupos'.",
   perfil: "En la sección **Perfil** puedes ver tus datos personales, la cantidad de materias inscritas y tus créditos. También puedes repetir el tutorial desde ahí.",
@@ -22,6 +23,8 @@ const appKnowledge: Record<string, string> = {
   materias: "Tus materias inscritas se encuentran en la sección **Mis Materias**, accesible desde el menú de navegación o el dashboard.",
 };
 
+const defaultMessage: Message = { role: "assistant", content: "¡Hola! 👋 Soy tu asistente de UniControl. ¿En qué puedo ayudarte?" };
+
 function getResponse(input: string): string {
   const lower = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -29,7 +32,6 @@ function getResponse(input: string): string {
     if (lower.includes(key)) return value;
   }
 
-  // General app questions
   if (lower.includes("ayuda") || lower.includes("help") || lower.includes("que puedo hacer")) {
     return "Puedo ayudarte con:\n- Cómo **inscribir** materias\n- Cómo **cancelar** materias\n- Información sobre **créditos**\n- **Cupos** disponibles\n- Tu **perfil** y datos\n- El **catálogo** de materias\n- **Horarios** y cruces";
   }
@@ -42,12 +44,22 @@ function getResponse(input: string): string {
 }
 
 export default function AIChatBot() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "¡Hola! 👋 Soy tu asistente de UniControl. ¿En qué puedo ayudarte?" },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([defaultMessage]);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prevUserIdRef = useRef<string | null>(null);
+
+  // Reset chat when user changes
+  useEffect(() => {
+    const currentId = user?.id || null;
+    if (prevUserIdRef.current !== null && prevUserIdRef.current !== currentId) {
+      setMessages([defaultMessage]);
+      setInput("");
+    }
+    prevUserIdRef.current = currentId;
+  }, [user?.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,9 +73,11 @@ export default function AIChatBot() {
     setInput("");
   };
 
+  // Don't show chat if not logged in
+  if (!user) return null;
+
   return (
     <>
-      {/* FAB */}
       <motion.button
         onClick={() => setOpen(!open)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
@@ -72,7 +86,6 @@ export default function AIChatBot() {
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </motion.button>
 
-      {/* Chat window */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -81,13 +94,11 @@ export default function AIChatBot() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className="fixed bottom-24 right-6 z-50 w-[340px] max-h-[480px] bg-card rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
           >
-            {/* Header */}
             <div className="px-4 py-3 border-b border-border bg-primary/5 flex items-center gap-2">
               <Bot className="h-5 w-5 text-primary" />
               <span className="font-display font-semibold text-sm text-foreground">Asistente UniControl</span>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[200px] max-h-[340px]">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -105,7 +116,6 @@ export default function AIChatBot() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Input */}
             <div className="px-3 py-3 border-t border-border flex gap-2">
               <Input
                 value={input}

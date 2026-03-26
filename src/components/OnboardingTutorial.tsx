@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { BookOpen, GraduationCap, User, XCircle, ChevronRight, X } from "lucide-react";
 
 const steps = [
@@ -12,12 +13,12 @@ const steps = [
   {
     icon: GraduationCap,
     title: "Mis Materias",
-    description: "Revisa tus materias inscritas, controla tus créditos totales y gestiona tu carga académica.",
+    description: "Revisa tus materias inscritas, controla tus créditos totales y consulta tu carga académica.",
   },
   {
     icon: XCircle,
     title: "Cancelar Materias",
-    description: "Puedes cancelar materias que ya no necesites desde 'Mis Materias'. Los cupos se liberan automáticamente.",
+    description: "En la sección 'Cancelar Materias' puedes eliminar materias que ya no necesites. Los cupos se liberan automáticamente.",
   },
   {
     icon: User,
@@ -26,24 +27,16 @@ const steps = [
   },
 ];
 
-const STORAGE_KEY = "unicontrol_onboarding_done";
-
 export default function OnboardingTutorial() {
-  const [show, setShow] = useState(false);
+  const { profile, markTutorialSeen } = useAuth();
   const [step, setStep] = useState(0);
 
-  useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setShow(true);
-    }
-  }, []);
+  // Don't show if profile not loaded or tutorial already seen
+  if (!profile || profile.tutorial_visto) return null;
 
-  const finish = () => {
-    localStorage.setItem(STORAGE_KEY, "true");
-    setShow(false);
+  const finish = async () => {
+    await markTutorialSeen();
   };
-
-  if (!show) return null;
 
   const current = steps[step];
   const Icon = current.icon;

@@ -146,6 +146,7 @@ export type Database = {
           id: string
           nombre: string
           semestre_actual: number
+          tutorial_visto: boolean
         }
         Insert: {
           carrera_id: string
@@ -154,6 +155,7 @@ export type Database = {
           id: string
           nombre: string
           semestre_actual?: number
+          tutorial_visto?: boolean
         }
         Update: {
           carrera_id?: string
@@ -162,6 +164,7 @@ export type Database = {
           id?: string
           nombre?: string
           semestre_actual?: number
+          tutorial_visto?: boolean
         }
         Relationships: [
           {
