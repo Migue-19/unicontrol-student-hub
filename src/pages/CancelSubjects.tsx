@@ -17,6 +17,11 @@ interface EnrolledSubject {
   horario: string;
 }
 
+interface CancellationResult {
+  success?: boolean;
+  message?: string;
+}
+
 export default function CancelSubjects() {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -24,43 +29,106 @@ export default function CancelSubjects() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
 
-  const fetchEnrolled = async () => {
-    if (!profile) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from("inscripciones")
-      .select("id, materia_id, materias(codigo, nombre, creditos, horario)")
-      .eq("usuario_id", profile.id)
-      .eq("estado", "inscrita");
+  const fetchEnrolled = async ({ throwOnError = false }: { throwOnError?: boolean } = {}): Promise<EnrolledSubject[]> => {
+    if (!profile) {
+      setEnrolled([]);
+      setLoading(false);
+      return [];
+    }
 
-    setEnrolled((data || []).map(d => ({
-      id: d.id,
-      materia_id: d.materia_id,
-      codigo: (d.materias as any)?.codigo || "",
-      nombre: (d.materias as any)?.nombre || "",
-      creditos: (d.materias as any)?.creditos || 0,
-      horario: (d.materias as any)?.horario || "",
-    })));
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("inscripciones")
+        .select("id, materia_id, materias(codigo, nombre, creditos, horario)")
+        .eq("usuario_id", profile.id)
+        .eq("estado", "inscrita");
+
+      if (error) {
+        console.error("Error consultando inscripciones activas:", error);
+        throw error;
+      }
+
+      const mapped = (data || []).map((d) => ({
+        id: d.id,
+        materia_id: d.materia_id,
+        codigo: (d.materias as any)?.codigo || "",
+        nombre: (d.materias as any)?.nombre || "",
+        creditos: (d.materias as any)?.creditos || 0,
+        horario: (d.materias as any)?.horario || "",
+      }));
+
+      setEnrolled(mapped);
+      return mapped;
+    } catch (error) {
+      console.error("No fue posible sincronizar las materias inscritas:", error);
+      setEnrolled([]);
+
+      if (throwOnError) {
+        throw error;
+      }
+
+      toast({
+        title: "Error al cargar materias",
+        description: "No fue posible sincronizar tus materias desde Supabase.",
+        variant: "destructive",
+      });
+
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchEnrolled(); }, [profile]);
+  useEffect(() => {
+    void fetchEnrolled();
+  }, [profile]);
 
   const handleCancel = async (materiaId: string) => {
     if (!profile) return;
+
     setCancelling(materiaId);
-    const { data, error } = await supabase.rpc("cancelar_inscripcion", {
-      p_usuario_id: profile.id,
-      p_materia_id: materiaId,
-    });
-    setCancelling(null);
-    const result = data as any;
-    toast({
-      title: result?.success ? "Materia cancelada correctamente" : "Error al cancelar materia",
-      description: result?.message || error?.message || "Error desconocido",
-      variant: result?.success ? "default" : "destructive",
-    });
-    if (result?.success) fetchEnrolled();
+
+    try {
+      const { data, error } = await supabase.rpc("cancelar_inscripcion", {
+        p_usuario_id: profile.id,
+        p_materia_id: materiaId,
+      });
+
+      if (error) {
+        console.error("Error al ejecutar cancelar_inscripcion:", error);
+        throw error;
+      }
+
+      const result = data as CancellationResult | null;
+
+      if (!result?.success) {
+        console.error("Supabase rechazó la cancelación:", result);
+        throw new Error(result?.message || "La cancelación no pudo completarse.");
+      }
+
+      const updatedEnrolled = await fetchEnrolled({ throwOnError: true });
+      const stillEnrolled = updatedEnrolled.some((subject) => subject.materia_id === materiaId);
+
+      if (stillEnrolled) {
+        throw new Error("La cancelación no se reflejó en Supabase.");
+      }
+
+      toast({
+        title: "Materia cancelada correctamente",
+        description: result.message || "La materia fue actualizada en Supabase.",
+      });
+    } catch (error) {
+      console.error("Error al cancelar materia:", error);
+      toast({
+        title: "Error al cancelar materia",
+        description: error instanceof Error ? error.message : "Error desconocido",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelling(null);
+    }
   };
 
   if (!profile) return null;
