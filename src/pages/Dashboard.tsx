@@ -32,8 +32,8 @@ export default function Dashboard() {
   const cards = [
     { title: "Catálogo de Materias", desc: "Consulta e inscribe materias", icon: BookOpen, path: "/catalog", color: "bg-primary/10 text-primary" },
     { title: "Mis Materias", desc: `${enrolledCount} inscritas · ${totalCredits} créditos`, icon: GraduationCap, path: "/my-subjects", color: "bg-accent text-accent-foreground" },
+    { title: "Cancelar Materias", desc: "Gestiona tu carga académica", icon: XCircle, path: "/cancel-subjects", color: "bg-destructive/10 text-destructive" },
     { title: "Mi Perfil", desc: "Datos personales y configuración", icon: User, path: "/profile", color: "bg-secondary text-secondary-foreground" },
-    { title: "Cancelar Materias", desc: "Gestiona tu carga académica", icon: XCircle, path: "/my-subjects", color: "bg-destructive/10 text-destructive" },
   ];
 
   return (

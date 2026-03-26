@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, RefreshCw, User } from "lucide-react";
 
 export default function Profile() {
-  const { profile, logout } = useAuth();
+  const { profile, logout, markTutorialSeen } = useAuth();
   const navigate = useNavigate();
   const [totalCredits, setTotalCredits] = useState(0);
   const [enrolledCount, setEnrolledCount] = useState(0);
@@ -35,8 +35,11 @@ export default function Profile() {
     navigate("/login");
   };
 
-  const restartTutorial = () => {
-    localStorage.removeItem("unicontrol_onboarding_done");
+  const restartTutorial = async () => {
+    // Reset tutorial_visto in DB so tutorial shows again
+    if (profile) {
+      await supabase.from("usuarios").update({ tutorial_visto: false } as any).eq("id", profile.id);
+    }
     navigate("/dashboard");
     window.location.reload();
   };
