@@ -5,19 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { LogIn } from "lucide-react";
+import { LogIn, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = login(correo, password);
+    setSubmitting(true);
+    const result = await login(correo, password);
+    setSubmitting(false);
     if (result.success) {
       toast({ title: "Bienvenido", description: result.message });
       navigate("/dashboard");
@@ -68,8 +71,8 @@ export default function Login() {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full gap-2">
-                <LogIn className="h-4 w-4" />
+              <Button type="submit" className="w-full gap-2" disabled={submitting}>
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                 Ingresar
               </Button>
             </form>

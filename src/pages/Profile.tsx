@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { enrollmentService } from "@/services/enrollmentService";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
@@ -7,16 +8,30 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, RefreshCw, User } from "lucide-react";
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { profile, logout } = useAuth();
   const navigate = useNavigate();
+  const [totalCredits, setTotalCredits] = useState(0);
+  const [enrolledCount, setEnrolledCount] = useState(0);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from("inscripciones")
+      .select("materia_id, materias(creditos)")
+      .eq("usuario_id", profile.id)
+      .eq("estado", "inscrita")
+      .then(({ data }) => {
+        if (data) {
+          setEnrolledCount(data.length);
+          setTotalCredits(data.reduce((s, d) => s + ((d.materias as any)?.creditos || 0), 0));
+        }
+      });
+  }, [profile]);
 
-  const totalCredits = enrollmentService.getTotalCredits(user.id);
-  const enrolled = enrollmentService.getByUser(user.id);
+  if (!profile) return null;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -27,12 +42,12 @@ export default function Profile() {
   };
 
   const fields = [
-    { label: "Nombre", value: user.nombre },
-    { label: "Código", value: user.codigo },
-    { label: "Correo", value: user.correo },
-    { label: "Carrera", value: user.carrera },
-    { label: "Semestre", value: `${user.semestre}` },
-    { label: "Materias inscritas", value: `${enrolled.length}` },
+    { label: "Nombre", value: profile.nombre },
+    { label: "Código", value: profile.codigo_estudiantil },
+    { label: "Correo", value: profile.email },
+    { label: "Carrera", value: profile.carrera_nombre || "" },
+    { label: "Semestre", value: `${profile.semestre_actual}` },
+    { label: "Materias inscritas", value: `${enrolledCount}` },
     { label: "Créditos", value: `${totalCredits} / 21` },
   ];
 
@@ -42,8 +57,7 @@ export default function Profile() {
       <main className="container py-8 max-w-lg">
         <div className="mb-6 animate-fade-in">
           <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
-            <User className="h-7 w-7 text-primary" />
-            Mi Perfil
+            <User className="h-7 w-7 text-primary" /> Mi Perfil
           </h1>
         </div>
 
@@ -63,12 +77,10 @@ export default function Profile() {
 
         <div className="mt-6 space-y-3 animate-fade-in" style={{ animationDelay: "200ms" }}>
           <Button variant="outline" className="w-full gap-2" onClick={restartTutorial}>
-            <RefreshCw className="h-4 w-4" />
-            Repetir Tutorial
+            <RefreshCw className="h-4 w-4" /> Repetir Tutorial
           </Button>
           <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-            Cerrar Sesión
+            <LogOut className="h-4 w-4" /> Cerrar Sesión
           </Button>
         </div>
       </main>
