@@ -16,8 +16,8 @@ export default function AppHeader() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -30,12 +30,9 @@ export default function AppHeader() {
             alt="UCEVA"
             className="h-10 w-auto"
           />
-          <span className="font-display text-lg font-bold text-foreground hidden sm:inline">
-            UniControl
-          </span>
+          <span className="font-display text-lg font-bold text-foreground hidden sm:inline">UniControl</span>
         </div>
 
-        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
             <button
@@ -54,18 +51,15 @@ export default function AppHeader() {
             onClick={handleLogout}
             className="ml-2 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5"
           >
-            <LogOut className="h-4 w-4" />
-            Salir
+            <LogOut className="h-4 w-4" /> Salir
           </button>
         </nav>
 
-        {/* Mobile menu toggle */}
         <button className="md:hidden p-2" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
-      {/* Mobile nav */}
       {menuOpen && (
         <div className="md:hidden border-t border-border bg-card animate-fade-in">
           <div className="container py-3 flex flex-col gap-1">
@@ -86,8 +80,7 @@ export default function AppHeader() {
               onClick={handleLogout}
               className="px-4 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 text-left flex items-center gap-2"
             >
-              <LogOut className="h-4 w-4" />
-              Cerrar sesión
+              <LogOut className="h-4 w-4" /> Cerrar sesión
             </button>
           </div>
         </div>

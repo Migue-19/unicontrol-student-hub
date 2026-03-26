@@ -1,23 +1,37 @@
 import { useAuth } from "@/hooks/useAuth";
-import { enrollmentService } from "@/services/enrollmentService";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, GraduationCap, User, XCircle } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
+  const [enrolledCount, setEnrolledCount] = useState(0);
+  const [totalCredits, setTotalCredits] = useState(0);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from("inscripciones")
+      .select("materia_id, materias(creditos)")
+      .eq("usuario_id", profile.id)
+      .eq("estado", "inscrita")
+      .then(({ data }) => {
+        if (data) {
+          setEnrolledCount(data.length);
+          setTotalCredits(data.reduce((sum, d) => sum + ((d.materias as any)?.creditos || 0), 0));
+        }
+      });
+  }, [profile]);
 
-  const enrolled = enrollmentService.getByUser(user.id);
-  const totalCredits = enrollmentService.getTotalCredits(user.id);
+  if (!profile) return null;
 
   const cards = [
     { title: "Catálogo de Materias", desc: "Consulta e inscribe materias", icon: BookOpen, path: "/catalog", color: "bg-primary/10 text-primary" },
-    { title: "Mis Materias", desc: `${enrolled.length} inscritas · ${totalCredits} créditos`, icon: GraduationCap, path: "/my-subjects", color: "bg-accent text-accent-foreground" },
+    { title: "Mis Materias", desc: `${enrolledCount} inscritas · ${totalCredits} créditos`, icon: GraduationCap, path: "/my-subjects", color: "bg-accent text-accent-foreground" },
     { title: "Mi Perfil", desc: "Datos personales y configuración", icon: User, path: "/profile", color: "bg-secondary text-secondary-foreground" },
     { title: "Cancelar Materias", desc: "Gestiona tu carga académica", icon: XCircle, path: "/my-subjects", color: "bg-destructive/10 text-destructive" },
   ];
@@ -28,10 +42,10 @@ export default function Dashboard() {
       <main className="container py-8">
         <div className="mb-8 animate-fade-in">
           <h1 className="font-display text-3xl font-bold text-foreground">
-            ¡Hola, {user.nombre.split(" ")[0]}!
+            ¡Hola, {profile.nombre.split(" ")[0]}!
           </h1>
           <p className="text-muted-foreground mt-1">
-            {user.carrera} · Semestre {user.semestre}
+            {profile.carrera_nombre} · Semestre {profile.semestre_actual}
           </p>
         </div>
 
@@ -56,7 +70,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {enrolled.length > 0 && (
+        {enrolledCount > 0 && (
           <div className="mt-8 animate-fade-in" style={{ animationDelay: "400ms" }}>
             <h2 className="font-display text-xl font-semibold mb-4">Resumen de Inscripciones</h2>
             <Card className="glass-card">

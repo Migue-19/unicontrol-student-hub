@@ -1,33 +1,71 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { enrollmentService } from "@/services/enrollmentService";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, GraduationCap } from "lucide-react";
+import { Trash2, GraduationCap, Loader2 } from "lucide-react";
+
+interface EnrolledSubject {
+  id: string;
+  materia_id: string;
+  codigo: string;
+  nombre: string;
+  creditos: number;
+  horario: string;
+}
 
 export default function MySubjects() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const { toast } = useToast();
-  const [, forceUpdate] = useState(0);
+  const [enrolled, setEnrolled] = useState<EnrolledSubject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
-  if (!user) return null;
+  const fetchEnrolled = async () => {
+    if (!profile) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("inscripciones")
+      .select("id, materia_id, materias(codigo, nombre, creditos, horario)")
+      .eq("usuario_id", profile.id)
+      .eq("estado", "inscrita");
 
-  const enrolled = enrollmentService.getByUser(user.id);
-  const totalCredits = enrollmentService.getTotalCredits(user.id);
-
-  const handleCancel = (subjectId: string) => {
-    const result = enrollmentService.cancel(user.id, subjectId);
-    toast({
-      title: result.success ? "Cancelada" : "Error",
-      description: result.message,
-      variant: result.success ? "default" : "destructive",
-    });
-    if (result.success) forceUpdate((n) => n + 1);
+    setEnrolled((data || []).map(d => ({
+      id: d.id,
+      materia_id: d.materia_id,
+      codigo: (d.materias as any)?.codigo || "",
+      nombre: (d.materias as any)?.nombre || "",
+      creditos: (d.materias as any)?.creditos || 0,
+      horario: (d.materias as any)?.horario || "",
+    })));
+    setLoading(false);
   };
+
+  useEffect(() => { fetchEnrolled(); }, [profile]);
+
+  const totalCredits = enrolled.reduce((s, e) => s + e.creditos, 0);
+
+  const handleCancel = async (materiaId: string) => {
+    if (!profile) return;
+    setCancelling(materiaId);
+    const { data, error } = await supabase.rpc("cancelar_inscripcion", {
+      p_usuario_id: profile.id,
+      p_materia_id: materiaId,
+    });
+    setCancelling(null);
+    const result = data as any;
+    toast({
+      title: result?.success ? "Cancelada" : "Error",
+      description: result?.message || error?.message || "Error",
+      variant: result?.success ? "default" : "destructive",
+    });
+    if (result?.success) fetchEnrolled();
+  };
+
+  if (!profile) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -35,8 +73,7 @@ export default function MySubjects() {
       <main className="container py-8">
         <div className="mb-6 animate-fade-in">
           <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
-            <GraduationCap className="h-7 w-7 text-primary" />
-            Mis Materias
+            <GraduationCap className="h-7 w-7 text-primary" /> Mis Materias
           </h1>
         </div>
 
@@ -55,7 +92,9 @@ export default function MySubjects() {
           </Card>
         </div>
 
-        {enrolled.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : enrolled.length === 0 ? (
           <Card className="glass-card animate-fade-in">
             <CardContent className="py-12 text-center text-muted-foreground">
               No tienes materias inscritas. Ve al catálogo para inscribirte.
@@ -77,18 +116,19 @@ export default function MySubjects() {
                 <TableBody>
                   {enrolled.map((e) => (
                     <TableRow key={e.id}>
-                      <TableCell className="font-mono text-xs">{e.subject.codigo}</TableCell>
-                      <TableCell className="font-medium">{e.subject.nombre}</TableCell>
-                      <TableCell className="text-center">{e.subject.creditos}</TableCell>
-                      <TableCell className="text-sm">{e.subject.horario}</TableCell>
+                      <TableCell className="font-mono text-xs">{e.codigo}</TableCell>
+                      <TableCell className="font-medium">{e.nombre}</TableCell>
+                      <TableCell className="text-center">{e.creditos}</TableCell>
+                      <TableCell className="text-sm">{e.horario}</TableCell>
                       <TableCell className="text-center">
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleCancel(e.subjectId)}
+                          onClick={() => handleCancel(e.materia_id)}
+                          disabled={cancelling === e.materia_id}
                           className="gap-1"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          {cancelling === e.materia_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           Cancelar
                         </Button>
                       </TableCell>
