@@ -185,6 +185,10 @@ export type Database = {
         Args: { p_materia_id: string; p_usuario_id: string }
         Returns: Json
       }
+      incrementar_cupos: {
+        Args: { materia_id_input: string }
+        Returns: undefined
+      }
       inscribir_materia: {
         Args: { p_materia_id: string; p_usuario_id: string }
         Returns: Json
