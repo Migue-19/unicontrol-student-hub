@@ -1,39 +1,22 @@
 import { useState, useEffect } from "react";
-import { useAuth, UserProfile } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";  
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, XCircle, Loader2 } from "lucide-react";
-
-interface EnrolledSubject {
-  id: string;
-  materia_id: string;
-  codigo: string;
-  nombre: string;
-  creditos: number;
-  horario: string;
-}
-
-interface CancellationResult {
-  success?: boolean;
-  message?: string;
-}
+import { ActiveEnrollment, cancelEnrollment, fetchActiveEnrollments } from "@/services/inscripcionesService";
 
 export default function CancelSubjects() {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [enrolled, setEnrolled] = useState<EnrolledSubject[]>([]);
+  const [enrolled, setEnrolled] = useState<ActiveEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
 
-  const fetchEnrolled = async (
-    { throwOnError = false, currentProfile }: { throwOnError?: boolean; currentProfile?: UserProfile | null } = {}
-  ): Promise<EnrolledSubject[]> => {
-    const p = currentProfile ?? profile;
-    if (!p) {
+  const fetchEnrolled = async ({ throwOnError = false }: { throwOnError?: boolean } = {}): Promise<ActiveEnrollment[]> => {
+    if (!profile) {
       setEnrolled([]);
       setLoading(false);
       return [];
@@ -41,29 +24,10 @@ export default function CancelSubjects() {
 
     setLoading(true);
 
-    try {  
-      const { data, error } = await supabase
-        .from("inscripciones")
-        .select("id, materia_id, materias(codigo, nombre, creditos, horario)")
-        .eq("usuario_id", p.id)
-        .eq("estado", "inscrita");
-
-      if (error) {
-        console.error("Error consultando inscripciones activas:", error);
-        throw error;
-      }
-
-      const mapped = (data || []).map((d) => ({
-        id: d.id,
-        materia_id: d.materia_id,
-        codigo: (d.materias as any)?.codigo || "",
-        nombre: (d.materias as any)?.nombre || "",
-        creditos: (d.materias as any)?.creditos || 0,
-        horario: (d.materias as any)?.horario || "",
-      }));
-
-      setEnrolled(mapped);
-      return mapped;
+    try {
+      const activeEnrollments = await fetchActiveEnrollments(profile.id);
+      setEnrolled(activeEnrollments);
+      return activeEnrollments;
     } catch (error) {
       console.error("[CancelSubjects] fetchEnrolled error:", error);
       setEnrolled([]);
@@ -94,64 +58,12 @@ export default function CancelSubjects() {
     setCancelling(materiaId);
 
     try {
-      console.log("[CancelSubjects] Cancelando materia:", materiaId, "usuario:", profile.id);
-
-      const { data, error } = await supabase.rpc("cancelar_inscripcion", {
-        p_usuario_id: profile.id,
-        p_materia_id: materiaId,
-      });
-
-      if (error) {
-        console.error("[CancelSubjects] RPC error:", error);
-        throw error;
-      }
-
-      const result = data as CancellationResult | null;
-      console.log("[CancelSubjects] RPC result:", result);
-
-      if (!result?.success) {
-        throw new Error(result?.message || "La cancelación no pudo completarse.");
-      }
-
-      // Verify directly in DB that row is no longer 'inscrita'
-      const { data: verifyData, error: verifyError } = await supabase
-        .from("inscripciones")
-        .select("id, estado")
-        .eq("usuario_id", profile.id)
-        .eq("materia_id", materiaId)
-        .eq("estado", "inscrita");
-
-      console.log("[CancelSubjects] Verification query:", { verifyData, verifyError });
-
-      if (verifyError) {
-        console.error("[CancelSubjects] Verification error:", verifyError);
-      }
-
-      if (verifyData && verifyData.length > 0) {
-        // RPC said success but row still inscrita — try direct update as fallback
-        console.warn("[CancelSubjects] Row still inscrita, attempting direct update fallback");
-        const { error: directError } = await supabase
-          .from("inscripciones")
-          .update({ estado: "cancelada" })
-          .eq("usuario_id", profile.id)
-          .eq("materia_id", materiaId)
-          .eq("estado", "inscrita");
-
-        if (directError) {
-          console.error("[CancelSubjects] Direct update failed:", directError);
-          throw new Error("La cancelación no se reflejó en la base de datos.");
-        }
-
-        // Also increment cupos via helper
-        await supabase.rpc("incrementar_cupos", { materia_id_input: materiaId });
-      }
-
-      // Refresh the list
-      await fetchEnrolled();
+      const result = await cancelEnrollment(materiaId);
+      setEnrolled(result.enrollments);
 
       toast({
         title: "Materia cancelada correctamente",
-        description: result.message || "La materia fue actualizada en Supabase.",
+        description: result.message,
       });
     } catch (error) {
       console.error("[CancelSubjects] handleCancel error:", error);
