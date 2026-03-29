@@ -79,16 +79,24 @@ export async function cancelEnrollment(materiaId: string) {
     throw new Error(message);
   }
 
-  const remainingEnrollments = await fetchActiveEnrollments(userId);
-  const stillEnrolled = remainingEnrollments.some((subject) => subject.materia_id === materiaId);
+  // Verify the record was truly deleted from the database
+  const { data: checkData } = await supabase
+    .from("inscripciones")
+    .select("id")
+    .eq("usuario_id", userId)
+    .eq("materia_id", materiaId)
+    .eq("estado", "inscrita")
+    .maybeSingle();
 
-  if (stillEnrolled) {
-    console.error("[inscripcionesService] Verificación fallida: la materia sigue activa en Supabase", {
+  if (checkData) {
+    console.error("[inscripcionesService] Verificación fallida: la inscripción sigue en Supabase", {
       materiaId,
       userId,
     });
     throw new Error("La cancelación no se reflejó en Supabase.");
   }
+
+  const remainingEnrollments = await fetchActiveEnrollments(userId);
 
   return {
     message: result.message || "Materia cancelada correctamente",
