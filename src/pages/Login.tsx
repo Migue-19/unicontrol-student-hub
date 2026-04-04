@@ -23,7 +23,11 @@ export default function Login() {
     setSubmitting(false);
     if (result.success) {
       toast({ title: "Bienvenido", description: result.message });
-      navigate("/dashboard");
+      // isAdmin state is set by the auth hook after login
+      // Small delay to let state settle
+      setTimeout(() => {
+        navigate(isAdmin ? "/admin" : "/dashboard");
+      }, 100);
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
     }
