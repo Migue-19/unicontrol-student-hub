@@ -112,7 +112,7 @@ export default function CancelSubjects() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {enrolled.map((e) => (
+                  {enrolled.filter(e => e.estado === "inscrita").map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="font-mono text-xs">{e.codigo}</TableCell>
                       <TableCell className="font-medium">{e.nombre}</TableCell>
@@ -127,7 +127,7 @@ export default function CancelSubjects() {
                           className="gap-1"
                         >
                           {cancelling === e.materia_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                          Cancelar
+                          Solicitar Cancelación
                         </Button>
                       </TableCell>
                     </TableRow>

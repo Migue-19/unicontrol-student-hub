@@ -7,6 +7,8 @@ export interface ActiveEnrollment {
   nombre: string;
   creditos: number;
   horario: string;
+  estado: string;
+  tipo: string;
 }
 
 interface CancellationResult {
@@ -21,85 +23,46 @@ const mapEnrollment = (item: any): ActiveEnrollment => ({
   nombre: item.materias?.nombre || "",
   creditos: item.materias?.creditos || 0,
   horario: item.materias?.horario || "",
+  estado: item.estado || "inscrita",
+  tipo: item.tipo || "adicion",
 });
 
 export async function getAuthenticatedUserId() {
   const { data, error } = await supabase.auth.getUser();
-
-  if (error) {
-    console.error("[inscripcionesService] Error obteniendo usuario autenticado:", error);
-    throw new Error(error.message || "No fue posible validar la sesión.");
-  }
-
-  if (!data.user?.id) {
-    throw new Error("Usuario no autenticado");
-  }
-
+  if (error) throw new Error(error.message || "No fue posible validar la sesión.");
+  if (!data.user?.id) throw new Error("Usuario no autenticado");
   return data.user.id;
 }
 
 export async function fetchActiveEnrollments(userId: string): Promise<ActiveEnrollment[]> {
   const { data, error } = await supabase
     .from("inscripciones")
-    .select("id, materia_id, materias(codigo, nombre, creditos, horario)")
+    .select("id, materia_id, estado, tipo, materias(codigo, nombre, creditos, horario)")
     .eq("usuario_id", userId)
-    .eq("estado", "inscrita")
+    .in("estado", ["inscrita", "pendiente"])
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("[inscripcionesService] Error consultando inscripciones activas:", error);
-    throw error;
-  }
-
+  if (error) throw error;
   return (data || []).map(mapEnrollment);
 }
 
 export async function cancelEnrollment(materiaId: string) {
   const userId = await getAuthenticatedUserId();
 
-  console.log("[inscripcionesService] Cancelando:", materiaId);
-  console.log("[inscripcionesService] Usuario:", userId);
-
   const { data, error } = await supabase.rpc("cancelar_inscripcion", {
     p_usuario_id: userId,
     p_materia_id: materiaId,
   });
 
-  if (error) {
-    console.error("[inscripcionesService] Error RPC cancelar_inscripcion:", error);
-    throw new Error(error.message || "Error al cancelar materia");
-  }
+  if (error) throw new Error(error.message || "Error al cancelar materia");
 
   const result = data as CancellationResult | null;
-  console.log("[inscripcionesService] Resultado RPC:", result);
-
-  if (!result?.success) {
-    const message = result?.message || "La cancelación no pudo completarse.";
-    console.error("[inscripcionesService] Cancelación rechazada por Supabase:", message);
-    throw new Error(message);
-  }
-
-  // Verify the record was truly deleted from the database
-  const { data: checkData } = await supabase
-    .from("inscripciones")
-    .select("id")
-    .eq("usuario_id", userId)
-    .eq("materia_id", materiaId)
-    .eq("estado", "inscrita")
-    .maybeSingle();
-
-  if (checkData) {
-    console.error("[inscripcionesService] Verificación fallida: la inscripción sigue en Supabase", {
-      materiaId,
-      userId,
-    });
-    throw new Error("La cancelación no se reflejó en Supabase.");
-  }
+  if (!result?.success) throw new Error(result?.message || "La cancelación no pudo completarse.");
 
   const remainingEnrollments = await fetchActiveEnrollments(userId);
 
   return {
-    message: result.message || "Materia cancelada correctamente",
+    message: result.message || "Solicitud de cancelación enviada",
     enrollments: remainingEnrollments,
   };
 }
