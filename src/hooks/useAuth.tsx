@@ -121,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Eagerly fetch profile so isAuthenticated is true immediately
     if (data.user) {
       setUser(data.user);
-      await fetchProfile(data.user.id, data.user.email || "");
+      await Promise.all([
+        fetchProfile(data.user.id, data.user.email || ""),
+        checkAdminRole(data.user.id),
+      ]);
     }
 
     return { success: true, message: "Inicio de sesión exitoso" };
