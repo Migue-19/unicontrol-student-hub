@@ -37,6 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const checkAdminRole = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles" as any)
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    setIsAdmin(!!data);
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string, email: string): Promise<UserProfile | null> => {
     const { data } = await supabase
