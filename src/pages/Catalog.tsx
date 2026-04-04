@@ -37,11 +37,13 @@ export default function Catalog() {
 
     const [{ data: materias }, { data: inscripciones }] = await Promise.all([
       query.order("semestre").order("codigo"),
-      supabase.from("inscripciones").select("materia_id").eq("usuario_id", profile.id).eq("estado", "inscrita"),
+      supabase.from("inscripciones").select("materia_id, estado").eq("usuario_id", profile.id).in("estado", ["inscrita", "pendiente"]),
     ]);
 
     setSubjects((materias || []) as Materia[]);
-    setEnrolledIds(new Set((inscripciones || []).map(i => i.materia_id)));
+    const enrolledMap = new Map<string, string>();
+    (inscripciones || []).forEach((i: any) => enrolledMap.set(i.materia_id, i.estado));
+    setEnrolledIds(enrolledMap);
     setLoading(false);
   };
 
