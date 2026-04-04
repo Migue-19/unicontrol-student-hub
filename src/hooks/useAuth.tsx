@@ -26,6 +26,7 @@ interface AuthContextType {
   }) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   refreshProfile: () => Promise<void>;
   markTutorialSeen: () => Promise<void>;
 }
