@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
         setProfile(null);
+        setIsAdmin(false);
       }
     });
 
