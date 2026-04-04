@@ -12,7 +12,7 @@ export default function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { login, isAdmin } = useAuth();
+  const { login, isAdmin, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
