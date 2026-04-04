@@ -167,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    setIsAdmin(false);
   }, []);
 
   const refreshProfile = useCallback(async () => {
