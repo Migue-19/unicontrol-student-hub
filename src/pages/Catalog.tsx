@@ -21,7 +21,7 @@ export default function Catalog() {
   const { toast } = useToast();
   const [semestre, setSemestre] = useState<string>("user");
   const [subjects, setSubjects] = useState<Materia[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
+  const [enrolledIds, setEnrolledIds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState<string | null>(null);
 
