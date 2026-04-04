@@ -57,24 +57,39 @@ export type Database = {
       }
       inscripciones: {
         Row: {
+          admin_id: string | null
+          comentario_admin: string | null
           created_at: string
           estado: string
+          fecha_respuesta: string | null
+          fecha_solicitud: string | null
           id: string
           materia_id: string
+          tipo: string | null
           usuario_id: string
         }
         Insert: {
+          admin_id?: string | null
+          comentario_admin?: string | null
           created_at?: string
           estado?: string
+          fecha_respuesta?: string | null
+          fecha_solicitud?: string | null
           id?: string
           materia_id: string
+          tipo?: string | null
           usuario_id: string
         }
         Update: {
+          admin_id?: string | null
+          comentario_admin?: string | null
           created_at?: string
           estado?: string
+          fecha_respuesta?: string | null
+          fecha_solicitud?: string | null
           id?: string
           materia_id?: string
+          tipo?: string | null
           usuario_id?: string
         }
         Relationships: [
@@ -138,11 +153,71 @@ export type Database = {
           },
         ]
       }
+      mensajes: {
+        Row: {
+          asunto: string
+          created_at: string
+          emisor_id: string
+          id: string
+          leido: boolean
+          mensaje: string
+          parent_id: string | null
+          receptor_id: string
+        }
+        Insert: {
+          asunto: string
+          created_at?: string
+          emisor_id: string
+          id?: string
+          leido?: boolean
+          mensaje: string
+          parent_id?: string | null
+          receptor_id: string
+        }
+        Update: {
+          asunto?: string
+          created_at?: string
+          emisor_id?: string
+          id?: string
+          leido?: boolean
+          mensaje?: string
+          parent_id?: string | null
+          receptor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensajes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "mensajes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       usuarios: {
         Row: {
           carrera_id: string
           codigo_estudiantil: string
           created_at: string
+          facultad_id: string | null
           id: string
           nombre: string
           semestre_actual: number
@@ -152,6 +227,7 @@ export type Database = {
           carrera_id: string
           codigo_estudiantil: string
           created_at?: string
+          facultad_id?: string | null
           id: string
           nombre: string
           semestre_actual?: number
@@ -161,6 +237,7 @@ export type Database = {
           carrera_id?: string
           codigo_estudiantil?: string
           created_at?: string
+          facultad_id?: string | null
           id?: string
           nombre?: string
           semestre_actual?: number
@@ -174,6 +251,13 @@ export type Database = {
             referencedRelation: "carreras"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "usuarios_facultad_id_fkey"
+            columns: ["facultad_id"]
+            isOneToOne: false
+            referencedRelation: "facultades"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -185,6 +269,14 @@ export type Database = {
         Args: { p_materia_id: string; p_usuario_id: string }
         Returns: Json
       }
+      get_admin_facultad: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       incrementar_cupos: {
         Args: { materia_id_input: string }
         Returns: undefined
@@ -193,9 +285,17 @@ export type Database = {
         Args: { p_materia_id: string; p_usuario_id: string }
         Returns: Json
       }
+      resolver_solicitud: {
+        Args: {
+          p_accion: string
+          p_comentario?: string
+          p_inscripcion_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "estudiante"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -322,6 +422,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "estudiante"],
+    },
   },
 } as const

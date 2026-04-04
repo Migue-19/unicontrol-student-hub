@@ -1,18 +1,15 @@
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X, Shield } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const navItems = [
-  { label: "Inicio", path: "/dashboard" },
-  { label: "Catálogo", path: "/catalog" },
-  { label: "Mis Materias", path: "/my-subjects" },
-  { label: "Cancelar Materias", path: "/cancel-subjects" },
-  { label: "Mensajes", path: "/messages" },
-  { label: "Perfil", path: "/profile" },
+  { label: "Solicitudes", path: "/admin" },
+  { label: "Estudiantes", path: "/admin/estudiantes" },
+  { label: "Mensajes", path: "/admin/mensajes" },
 ];
 
-export default function AppHeader() {
+export default function AdminHeader() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,13 +23,14 @@ export default function AppHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/dashboard")}>
-          <img
-            src="https://www.uceva.edu.co/wp-content/uploads/2023/08/BANDERA-UCEVA.png"
-            alt="UCEVA"
-            className="h-10 w-auto"
-          />
-          <span className="font-display text-lg font-bold text-foreground hidden sm:inline">UniControl</span>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/admin")}>
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-primary" />
+          </div>
+          <div className="hidden sm:block">
+            <span className="font-display text-lg font-bold text-foreground">UniControl</span>
+            <span className="text-xs text-muted-foreground block -mt-1">Panel Administrativo</span>
+          </div>
         </div>
 
         <nav className="hidden md:flex items-center gap-1">

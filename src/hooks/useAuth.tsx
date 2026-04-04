@@ -26,6 +26,7 @@ interface AuthContextType {
   }) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   refreshProfile: () => Promise<void>;
   markTutorialSeen: () => Promise<void>;
 }
@@ -36,6 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const checkAdminRole = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles" as any)
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    setIsAdmin(!!data);
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string, email: string): Promise<UserProfile | null> => {
     const { data } = await supabase
@@ -71,11 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session.user);
         // Defer to avoid Supabase auth deadlock
         setTimeout(() => {
-          if (mounted) fetchProfile(session.user.id, session.user.email || "");
+          if (mounted) {
+            fetchProfile(session.user.id, session.user.email || "");
+            checkAdminRole(session.user.id);
+          }
         }, 0);
       } else {
         setUser(null);
         setProfile(null);
+        setIsAdmin(false);
       }
     });
 
@@ -84,7 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        await fetchProfile(session.user.id, session.user.email || "");
+        await Promise.all([
+          fetchProfile(session.user.id, session.user.email || ""),
+          checkAdminRole(session.user.id),
+        ]);
       }
       setLoading(false);
     });
@@ -93,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, checkAdminRole]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -102,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Eagerly fetch profile so isAuthenticated is true immediately
     if (data.user) {
       setUser(data.user);
-      await fetchProfile(data.user.id, data.user.email || "");
+      await Promise.all([
+        fetchProfile(data.user.id, data.user.email || ""),
+        checkAdminRole(data.user.id),
+      ]);
     }
 
     return { success: true, message: "Inicio de sesión exitoso" };
@@ -145,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    setIsAdmin(false);
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -161,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, profile, loading, login, register, logout,
       isAuthenticated: !!user && !!profile,
+      isAdmin,
       refreshProfile,
       markTutorialSeen,
     }}>

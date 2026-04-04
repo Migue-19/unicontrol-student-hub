@@ -21,7 +21,7 @@ export default function Catalog() {
   const { toast } = useToast();
   const [semestre, setSemestre] = useState<string>("user");
   const [subjects, setSubjects] = useState<Materia[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
+  const [enrolledIds, setEnrolledIds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState<string | null>(null);
 
@@ -37,11 +37,13 @@ export default function Catalog() {
 
     const [{ data: materias }, { data: inscripciones }] = await Promise.all([
       query.order("semestre").order("codigo"),
-      supabase.from("inscripciones").select("materia_id").eq("usuario_id", profile.id).eq("estado", "inscrita"),
+      supabase.from("inscripciones").select("materia_id, estado").eq("usuario_id", profile.id).in("estado", ["inscrita", "pendiente"]),
     ]);
 
     setSubjects((materias || []) as Materia[]);
-    setEnrolledIds(new Set((inscripciones || []).map(i => i.materia_id)));
+    const enrolledMap = new Map<string, string>();
+    (inscripciones || []).forEach((i: any) => enrolledMap.set(i.materia_id, i.estado));
+    setEnrolledIds(enrolledMap);
     setLoading(false);
   };
 
@@ -121,7 +123,9 @@ export default function Catalog() {
                 </TableHeader>
                 <TableBody>
                   {subjects.map((s) => {
-                    const isEnrolled = enrolledIds.has(s.id);
+                    const status = enrolledIds.get(s.id);
+                    const isEnrolled = status === "inscrita";
+                    const isPending = status === "pendiente";
                     const noSlots = s.cupos_disponibles === 0;
                     return (
                       <TableRow key={s.id}>
@@ -133,6 +137,8 @@ export default function Catalog() {
                         <TableCell className="text-center">
                           {isEnrolled ? (
                             <Badge className="bg-primary/10 text-primary border-0">Inscrito</Badge>
+                          ) : isPending ? (
+                            <Badge className="bg-warning/10 text-warning border-0">Pendiente</Badge>
                           ) : noSlots ? (
                             <Badge variant="destructive">Sin cupos</Badge>
                           ) : (
@@ -143,11 +149,11 @@ export default function Catalog() {
                           <Button
                             size="sm"
                             onClick={() => handleEnroll(s.id)}
-                            disabled={isEnrolled || noSlots || enrolling === s.id}
+                            disabled={isEnrolled || isPending || noSlots || enrolling === s.id}
                             className="gap-1"
                           >
                             {enrolling === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookPlus className="h-3.5 w-3.5" />}
-                            Inscribir
+                            {isPending ? "Pendiente" : "Inscribir"}
                           </Button>
                         </TableCell>
                       </TableRow>

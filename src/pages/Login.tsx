@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export default function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { login, isAdmin, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -23,11 +23,19 @@ export default function Login() {
     setSubmitting(false);
     if (result.success) {
       toast({ title: "Bienvenido", description: result.message });
-      navigate("/dashboard");
     } else {
       toast({ title: "Error", description: result.message, variant: "destructive" });
     }
   };
+
+  // Redirect after login based on role
+  useEffect(() => {
+    if (isAdmin) {
+      navigate("/admin");
+    } else if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
