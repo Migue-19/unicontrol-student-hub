@@ -127,6 +127,7 @@ export default function Catalog() {
                     const isEnrolled = status === "inscrita";
                     const isPending = status === "pendiente";
                     const noSlots = s.cupos_disponibles === 0;
+                    return (
                       <TableRow key={s.id}>
                         <TableCell className="font-mono text-xs">{s.codigo}</TableCell>
                         <TableCell className="font-medium">{s.nombre}</TableCell>
@@ -136,6 +137,8 @@ export default function Catalog() {
                         <TableCell className="text-center">
                           {isEnrolled ? (
                             <Badge className="bg-primary/10 text-primary border-0">Inscrito</Badge>
+                          ) : isPending ? (
+                            <Badge className="bg-warning/10 text-warning border-0">Pendiente</Badge>
                           ) : noSlots ? (
                             <Badge variant="destructive">Sin cupos</Badge>
                           ) : (
@@ -146,11 +149,11 @@ export default function Catalog() {
                           <Button
                             size="sm"
                             onClick={() => handleEnroll(s.id)}
-                            disabled={isEnrolled || noSlots || enrolling === s.id}
+                            disabled={isEnrolled || isPending || noSlots || enrolling === s.id}
                             className="gap-1"
                           >
                             {enrolling === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookPlus className="h-3.5 w-3.5" />}
-                            Inscribir
+                            {isPending ? "Pendiente" : "Inscribir"}
                           </Button>
                         </TableCell>
                       </TableRow>
