@@ -87,7 +87,7 @@ export default function CancelSubjects() {
           <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
             <XCircle className="h-7 w-7 text-destructive" /> Cancelar Materias
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Selecciona las materias que deseas cancelar. Los cupos se liberan automáticamente.</p>
+          <p className="text-muted-foreground text-sm mt-1">Solicita la cancelación de tus materias. Un coordinador revisará tu solicitud.</p>
         </div>
 
         {loading ? (
