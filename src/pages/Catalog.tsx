@@ -123,9 +123,10 @@ export default function Catalog() {
                 </TableHeader>
                 <TableBody>
                   {subjects.map((s) => {
-                    const isEnrolled = enrolledIds.has(s.id);
+                    const status = enrolledIds.get(s.id);
+                    const isEnrolled = status === "inscrita";
+                    const isPending = status === "pendiente";
                     const noSlots = s.cupos_disponibles === 0;
-                    return (
                       <TableRow key={s.id}>
                         <TableCell className="font-mono text-xs">{s.codigo}</TableCell>
                         <TableCell className="font-medium">{s.nombre}</TableCell>
