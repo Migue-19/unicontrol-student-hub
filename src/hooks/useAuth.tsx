@@ -83,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session.user);
         // Defer to avoid Supabase auth deadlock
         setTimeout(() => {
-          if (mounted) fetchProfile(session.user.id, session.user.email || "");
+          if (mounted) {
+            fetchProfile(session.user.id, session.user.email || "");
+            checkAdminRole(session.user.id);
+          }
         }, 0);
       } else {
         setUser(null);
