@@ -100,7 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       if (session?.user) {
         setUser(session.user);
-        await fetchProfile(session.user.id, session.user.email || "");
+        await Promise.all([
+          fetchProfile(session.user.id, session.user.email || ""),
+          checkAdminRole(session.user.id),
+        ]);
       }
       setLoading(false);
     });
