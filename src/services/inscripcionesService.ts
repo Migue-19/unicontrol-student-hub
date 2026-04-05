@@ -7,13 +7,14 @@ export interface ActiveEnrollment {
   nombre: string;
   creditos: number;
   horario: string;
-  estado: string;
-  tipo: string;
 }
 
-interface CancellationResult {
-  success?: boolean;
-  message?: string;
+export interface CargaAcademica {
+  id: string;
+  estado: string;
+  fecha_solicitud: string;
+  fecha_respuesta: string | null;
+  comentario_admin: string | null;
 }
 
 const mapEnrollment = (item: any): ActiveEnrollment => ({
@@ -23,8 +24,6 @@ const mapEnrollment = (item: any): ActiveEnrollment => ({
   nombre: item.materias?.nombre || "",
   creditos: item.materias?.creditos || 0,
   horario: item.materias?.horario || "",
-  estado: item.estado || "inscrita",
-  tipo: item.tipo || "adicion",
 });
 
 export async function getAuthenticatedUserId() {
@@ -37,9 +36,9 @@ export async function getAuthenticatedUserId() {
 export async function fetchActiveEnrollments(userId: string): Promise<ActiveEnrollment[]> {
   const { data, error } = await supabase
     .from("inscripciones")
-    .select("id, materia_id, estado, tipo, materias(codigo, nombre, creditos, horario)")
+    .select("id, materia_id, materias(codigo, nombre, creditos, horario)")
     .eq("usuario_id", userId)
-    .in("estado", ["inscrita", "pendiente"])
+    .eq("estado", "inscrita")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -56,13 +55,38 @@ export async function cancelEnrollment(materiaId: string) {
 
   if (error) throw new Error(error.message || "Error al cancelar materia");
 
-  const result = data as CancellationResult | null;
+  const result = data as any;
   if (!result?.success) throw new Error(result?.message || "La cancelación no pudo completarse.");
 
   const remainingEnrollments = await fetchActiveEnrollments(userId);
-
   return {
-    message: result.message || "Solicitud de cancelación enviada",
+    message: result.message || "Materia cancelada exitosamente",
     enrollments: remainingEnrollments,
   };
+}
+
+export async function confirmarCargaAcademica(userId: string) {
+  const { data, error } = await supabase.rpc("confirmar_carga_academica" as any, {
+    p_usuario_id: userId,
+  });
+
+  if (error) throw new Error(error.message || "Error al confirmar carga");
+
+  const result = data as any;
+  if (!result?.success) throw new Error(result?.message || "No se pudo confirmar la carga académica.");
+
+  return result;
+}
+
+export async function fetchCargaActual(userId: string): Promise<CargaAcademica | null> {
+  const { data, error } = await supabase
+    .from("cargas_academicas" as any)
+    .select("*")
+    .eq("usuario_id", userId)
+    .order("fecha_solicitud", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as unknown as CargaAcademica | null;
 }

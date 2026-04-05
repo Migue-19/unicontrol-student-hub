@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      cargas_academicas: {
+        Row: {
+          admin_id: string | null
+          comentario_admin: string | null
+          estado: string
+          fecha_respuesta: string | null
+          fecha_solicitud: string
+          id: string
+          usuario_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          comentario_admin?: string | null
+          estado?: string
+          fecha_respuesta?: string | null
+          fecha_solicitud?: string
+          id?: string
+          usuario_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          comentario_admin?: string | null
+          estado?: string
+          fecha_respuesta?: string | null
+          fecha_solicitud?: string
+          id?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       carreras: {
         Row: {
           facultad_id: string
@@ -267,6 +297,10 @@ export type Database = {
     Functions: {
       cancelar_inscripcion: {
         Args: { p_materia_id: string; p_usuario_id: string }
+        Returns: Json
+      }
+      confirmar_carga_academica: {
+        Args: { p_usuario_id: string }
         Returns: Json
       }
       get_admin_facultad: { Args: { _user_id: string }; Returns: string }

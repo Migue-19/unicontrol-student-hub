@@ -1,21 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export interface Solicitud {
+export interface CargaPendiente {
   id: string;
   usuario_id: string;
-  materia_id: string;
   estado: string;
-  tipo: string;
   fecha_solicitud: string;
   fecha_respuesta: string | null;
   admin_id: string | null;
   comentario_admin: string | null;
   estudiante_nombre?: string;
   estudiante_codigo?: string;
-  materia_nombre?: string;
-  materia_codigo?: string;
-  materia_creditos?: number;
-  materia_horario?: string;
+  estudiante_carrera?: string;
+  materias?: MateriaInscrita[];
+}
+
+export interface MateriaInscrita {
+  id: string;
+  codigo: string;
+  nombre: string;
+  creditos: number;
+  horario: string;
 }
 
 export interface Estudiante {
@@ -50,9 +54,9 @@ export async function checkIsAdmin(): Promise<boolean> {
   return !!data;
 }
 
-export async function fetchSolicitudes(filtro?: string): Promise<Solicitud[]> {
+export async function fetchCargasPendientes(filtro?: string): Promise<CargaPendiente[]> {
   let query = supabase
-    .from("inscripciones")
+    .from("cargas_academicas" as any)
     .select("*")
     .order("fecha_solicitud", { ascending: false });
 
@@ -63,46 +67,60 @@ export async function fetchSolicitudes(filtro?: string): Promise<Solicitud[]> {
   const { data, error } = await query;
   if (error) throw error;
 
-  const solicitudes = (data || []) as any[];
+  const cargas = (data || []) as any[];
+  const userIds = [...new Set(cargas.map((c) => c.usuario_id))];
 
-  // Enrich with student and subject info
-  const userIds = [...new Set(solicitudes.map((s) => s.usuario_id))];
-  const materiaIds = [...new Set(solicitudes.map((s) => s.materia_id))];
+  if (userIds.length === 0) return [];
 
-  const [{ data: usuarios }, { data: materias }] = await Promise.all([
-    userIds.length > 0
-      ? supabase.from("usuarios").select("id, nombre, codigo_estudiantil").in("id", userIds)
-      : Promise.resolve({ data: [] }),
-    materiaIds.length > 0
-      ? supabase.from("materias").select("id, nombre, codigo, creditos, horario").in("id", materiaIds)
-      : Promise.resolve({ data: [] }),
-  ]);
+  // Fetch student info
+  const { data: usuarios } = await supabase
+    .from("usuarios")
+    .select("id, nombre, codigo_estudiantil, carreras(nombre)")
+    .in("id", userIds);
 
   const userMap = new Map((usuarios || []).map((u: any) => [u.id, u]));
-  const materiaMap = new Map((materias || []).map((m: any) => [m.id, m]));
 
-  return solicitudes.map((s) => {
-    const user = userMap.get(s.usuario_id) as any;
-    const materia = materiaMap.get(s.materia_id) as any;
+  // Fetch inscripciones for all these students
+  const { data: inscripciones } = await supabase
+    .from("inscripciones")
+    .select("usuario_id, materias(id, codigo, nombre, creditos, horario)")
+    .in("usuario_id", userIds)
+    .eq("estado", "inscrita");
+
+  const materiasMap = new Map<string, MateriaInscrita[]>();
+  (inscripciones || []).forEach((i: any) => {
+    const uid = i.usuario_id;
+    if (!materiasMap.has(uid)) materiasMap.set(uid, []);
+    if (i.materias) {
+      materiasMap.get(uid)!.push({
+        id: i.materias.id,
+        codigo: i.materias.codigo,
+        nombre: i.materias.nombre,
+        creditos: i.materias.creditos,
+        horario: i.materias.horario,
+      });
+    }
+  });
+
+  return cargas.map((c) => {
+    const user = userMap.get(c.usuario_id) as any;
     return {
-      ...s,
+      ...c,
       estudiante_nombre: user?.nombre || "Desconocido",
       estudiante_codigo: user?.codigo_estudiantil || "",
-      materia_nombre: materia?.nombre || "Desconocida",
-      materia_codigo: materia?.codigo || "",
-      materia_creditos: materia?.creditos || 0,
-      materia_horario: materia?.horario || "",
+      estudiante_carrera: (user?.carreras as any)?.nombre || "",
+      materias: materiasMap.get(c.usuario_id) || [],
     };
   });
 }
 
 export async function resolverSolicitud(
-  inscripcionId: string,
+  cargaId: string,
   accion: "aprobar" | "rechazar",
   comentario?: string
 ) {
   const { data, error } = await supabase.rpc("resolver_solicitud" as any, {
-    p_inscripcion_id: inscripcionId,
+    p_inscripcion_id: cargaId,
     p_accion: accion,
     p_comentario: comentario || null,
   });
@@ -120,14 +138,17 @@ export async function fetchEstudiantes(): Promise<Estudiante[]> {
     .order("nombre");
 
   if (error) throw error;
-  return (data || []).map((u: any) => ({
-    id: u.id,
-    nombre: u.nombre,
-    codigo_estudiantil: u.codigo_estudiantil,
-    carrera_id: u.carrera_id,
-    carrera_nombre: u.carreras?.nombre || "",
-    semestre_actual: u.semestre_actual,
-  }));
+  // Filter out admin users (those without carrera_id)
+  return (data || [])
+    .filter((u: any) => u.carrera_id !== null)
+    .map((u: any) => ({
+      id: u.id,
+      nombre: u.nombre,
+      codigo_estudiantil: u.codigo_estudiantil,
+      carrera_id: u.carrera_id,
+      carrera_nombre: (u.carreras as any)?.nombre || "",
+      semestre_actual: u.semestre_actual,
+    }));
 }
 
 export async function fetchHistorialEstudiante(userId: string) {
@@ -135,7 +156,7 @@ export async function fetchHistorialEstudiante(userId: string) {
     .from("inscripciones")
     .select("*, materias(nombre, codigo, creditos, horario)")
     .eq("usuario_id", userId)
-    .order("fecha_solicitud", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data || []).map((i: any) => ({

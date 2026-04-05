@@ -1,30 +1,34 @@
 import { useState, useEffect } from "react";
 import AdminHeader from "@/components/AdminHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, XCircle, ClipboardList, Filter } from "lucide-react";
-import { fetchSolicitudes, resolverSolicitud, Solicitud } from "@/services/adminService";
+import { Loader2, CheckCircle2, XCircle, ClipboardList, Filter, Eye, Send } from "lucide-react";
+import { fetchCargasPendientes, resolverSolicitud, enviarMensaje, CargaPendiente } from "@/services/adminService";
 
 export default function AdminSolicitudes() {
   const { toast } = useToast();
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [cargas, setCargas] = useState<CargaPendiente[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState("pendiente");
   const [processing, setProcessing] = useState<string | null>(null);
-  const [rejectDialog, setRejectDialog] = useState<Solicitud | null>(null);
-  const [comentario, setComentario] = useState("");
+  const [detailDialog, setDetailDialog] = useState<CargaPendiente | null>(null);
+  const [actionDialog, setActionDialog] = useState<{ carga: CargaPendiente; accion: "aprobar" | "rechazar" } | null>(null);
+  const [mensaje, setMensaje] = useState("");
+  const [asunto, setAsunto] = useState("");
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await fetchSolicitudes(filtro);
-      setSolicitudes(data);
+      const data = await fetchCargasPendientes(filtro);
+      setCargas(data);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -34,27 +38,35 @@ export default function AdminSolicitudes() {
 
   useEffect(() => { load(); }, [filtro]);
 
-  const handleAprobar = async (s: Solicitud) => {
-    setProcessing(s.id);
-    try {
-      await resolverSolicitud(s.id, "aprobar");
-      toast({ title: "Aprobada", description: `Solicitud de ${s.estudiante_nombre} aprobada` });
-      load();
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setProcessing(null);
-    }
+  const openAction = (carga: CargaPendiente, accion: "aprobar" | "rechazar") => {
+    setActionDialog({ carga, accion });
+    setAsunto(accion === "aprobar"
+      ? "Carga Académica Aprobada"
+      : "Carga Académica Rechazada");
+    setMensaje(accion === "aprobar"
+      ? `Estimado/a ${carga.estudiante_nombre}, su carga académica ha sido aprobada por la coordinación.`
+      : "");
   };
 
-  const handleRechazar = async () => {
-    if (!rejectDialog) return;
-    setProcessing(rejectDialog.id);
+  const handleAction = async () => {
+    if (!actionDialog) return;
+    const { carga, accion } = actionDialog;
+    setProcessing(carga.id);
     try {
-      await resolverSolicitud(rejectDialog.id, "rechazar", comentario);
-      toast({ title: "Rechazada", description: `Solicitud rechazada` });
-      setRejectDialog(null);
-      setComentario("");
+      await resolverSolicitud(carga.id, accion, mensaje || undefined);
+
+      // Send notification message to student
+      if (asunto && mensaje) {
+        await enviarMensaje(carga.usuario_id, asunto, mensaje);
+      }
+
+      toast({
+        title: accion === "aprobar" ? "Aprobada" : "Rechazada",
+        description: `Carga de ${carga.estudiante_nombre} ${accion === "aprobar" ? "aprobada" : "rechazada"}`,
+      });
+      setActionDialog(null);
+      setMensaje("");
+      setAsunto("");
       load();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -66,16 +78,10 @@ export default function AdminSolicitudes() {
   const estadoBadge = (estado: string) => {
     switch (estado) {
       case "pendiente": return <Badge className="bg-warning/10 text-warning border-warning/20">Pendiente</Badge>;
-      case "inscrita": return <Badge className="bg-primary/10 text-primary border-primary/20">Aprobada</Badge>;
+      case "aprobada": return <Badge className="bg-primary/10 text-primary border-primary/20">Aprobada</Badge>;
       case "rechazada": return <Badge variant="destructive">Rechazada</Badge>;
       default: return <Badge variant="secondary">{estado}</Badge>;
     }
-  };
-
-  const tipoBadge = (tipo: string) => {
-    return tipo === "adicion"
-      ? <Badge variant="secondary" className="bg-accent text-accent-foreground">Adición</Badge>
-      : <Badge variant="secondary" className="bg-destructive/10 text-destructive">Cancelación</Badge>;
   };
 
   return (
@@ -85,9 +91,9 @@ export default function AdminSolicitudes() {
         <div className="mb-6 animate-fade-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
-              <ClipboardList className="h-7 w-7 text-primary" /> Solicitudes
+              <ClipboardList className="h-7 w-7 text-primary" /> Cargas Académicas
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">Gestiona las solicitudes de inscripción y cancelación</p>
+            <p className="text-muted-foreground text-sm mt-1">Gestiona las cargas académicas de los estudiantes de tu facultad</p>
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -95,7 +101,8 @@ export default function AdminSolicitudes() {
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pendiente">Pendientes</SelectItem>
-                <SelectItem value="inscrita">Aprobadas</SelectItem>
+                <SelectItem value="aprobada">Aprobadas</SelectItem>
+                <SelectItem value="rechazada">Rechazadas</SelectItem>
                 <SelectItem value="todas">Todas</SelectItem>
               </SelectContent>
             </Select>
@@ -104,95 +111,140 @@ export default function AdminSolicitudes() {
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : solicitudes.length === 0 ? (
+        ) : cargas.length === 0 ? (
           <Card className="glass-card animate-fade-in">
             <CardContent className="py-12 text-center text-muted-foreground">
-              No hay solicitudes {filtro !== "todas" ? filtro + "s" : ""}
+              No hay cargas académicas {filtro !== "todas" ? filtro + "s" : ""}
             </CardContent>
           </Card>
         ) : (
-          <Card className="glass-card overflow-hidden animate-fade-in">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Estudiante</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Materia</TableHead>
-                    <TableHead className="text-center">Tipo</TableHead>
-                    <TableHead className="text-center">Estado</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    {filtro === "pendiente" && <TableHead className="text-center">Acciones</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {solicitudes.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">{s.estudiante_nombre}</TableCell>
-                      <TableCell className="font-mono text-xs">{s.estudiante_codigo}</TableCell>
-                      <TableCell>
-                        <div>{s.materia_nombre}</div>
-                        <div className="text-xs text-muted-foreground">{s.materia_codigo} · {s.materia_creditos} cr · {s.materia_horario}</div>
-                      </TableCell>
-                      <TableCell className="text-center">{tipoBadge(s.tipo)}</TableCell>
-                      <TableCell className="text-center">{estadoBadge(s.estado)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(s.fecha_solicitud).toLocaleDateString("es-CO")}
-                      </TableCell>
-                      {filtro === "pendiente" && (
-                        <TableCell className="text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button
-                              size="sm"
-                              onClick={() => handleAprobar(s)}
-                              disabled={processing === s.id}
-                              className="gap-1"
-                            >
-                              {processing === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                              Aprobar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setRejectDialog(s)}
-                              disabled={processing === s.id}
-                              className="gap-1"
-                            >
-                              <XCircle className="h-3.5 w-3.5" /> Rechazar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
+          <div className="space-y-4 animate-fade-in">
+            {cargas.map((c) => {
+              const totalCredits = (c.materias || []).reduce((s, m) => s + m.creditos, 0);
+              return (
+                <Card key={c.id} className="glass-card overflow-hidden">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                      <div>
+                        <h3 className="font-display font-semibold text-foreground">{c.estudiante_nombre}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {c.estudiante_codigo} · {c.estudiante_carrera} · {(c.materias || []).length} materias · {totalCredits} créditos
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {estadoBadge(c.estado)}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(c.fecha_solicitud).toLocaleDateString("es-CO")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Subject preview */}
+                    <div className="overflow-x-auto mb-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Código</TableHead>
+                            <TableHead className="text-xs">Materia</TableHead>
+                            <TableHead className="text-xs text-center">Créditos</TableHead>
+                            <TableHead className="text-xs">Horario</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(c.materias || []).map((m) => (
+                            <TableRow key={m.id}>
+                              <TableCell className="font-mono text-xs">{m.codigo}</TableCell>
+                              <TableCell className="text-sm">{m.nombre}</TableCell>
+                              <TableCell className="text-center text-sm">{m.creditos}</TableCell>
+                              <TableCell className="text-xs">{m.horario}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Actions */}
+                    {c.estado === "pendiente" && (
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          onClick={() => openAction(c, "aprobar")}
+                          disabled={processing === c.id}
+                          className="gap-1"
+                        >
+                          {processing === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                          Aprobar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openAction(c, "rechazar")}
+                          disabled={processing === c.id}
+                          className="gap-1"
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Rechazar
+                        </Button>
+                      </div>
+                    )}
+
+                    {c.comentario_admin && c.estado !== "pendiente" && (
+                      <p className="text-xs text-muted-foreground mt-2 border-t pt-2">
+                        Comentario: {c.comentario_admin}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </main>
 
-      <Dialog open={!!rejectDialog} onOpenChange={() => { setRejectDialog(null); setComentario(""); }}>
+      {/* Approve/Reject with message dialog */}
+      <Dialog open={!!actionDialog} onOpenChange={() => { setActionDialog(null); setMensaje(""); setAsunto(""); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rechazar Solicitud</DialogTitle>
+            <DialogTitle>
+              {actionDialog?.accion === "aprobar" ? "Aprobar" : "Rechazar"} Carga Académica
+            </DialogTitle>
+            <DialogDescription>
+              {actionDialog?.accion === "aprobar"
+                ? `Aprobar la carga académica de ${actionDialog?.carga.estudiante_nombre}`
+                : `Rechazar la carga académica de ${actionDialog?.carga.estudiante_nombre}`
+              }. Se enviará un mensaje de notificación al estudiante.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Rechazar la solicitud de <strong>{rejectDialog?.estudiante_nombre}</strong> para{" "}
-              <strong>{rejectDialog?.materia_nombre}</strong>
-            </p>
-            <Textarea
-              placeholder="Motivo del rechazo (opcional)"
-              value={comentario}
-              onChange={(e) => setComentario(e.target.value)}
-            />
+          <div className="space-y-4">
+            <div>
+              <Label>Asunto del mensaje</Label>
+              <Input
+                value={asunto}
+                onChange={(e) => setAsunto(e.target.value)}
+                placeholder="Asunto"
+              />
+            </div>
+            <div>
+              <Label>Mensaje para el estudiante</Label>
+              <Textarea
+                value={mensaje}
+                onChange={(e) => setMensaje(e.target.value)}
+                placeholder={actionDialog?.accion === "rechazar" ? "Motivo del rechazo..." : "Mensaje de notificación..."}
+                rows={4}
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRejectDialog(null); setComentario(""); }}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleRechazar} disabled={!!processing}>
-              {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Confirmar Rechazo
+            <Button variant="outline" onClick={() => { setActionDialog(null); setMensaje(""); setAsunto(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant={actionDialog?.accion === "rechazar" ? "destructive" : "default"}
+              onClick={handleAction}
+              disabled={!!processing}
+              className="gap-1"
+            >
+              {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {actionDialog?.accion === "aprobar" ? "Aprobar y Notificar" : "Rechazar y Notificar"}
             </Button>
           </DialogFooter>
         </DialogContent>

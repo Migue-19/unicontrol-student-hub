@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -15,5 +15,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Redirect admin to admin panel
+  if (isAdmin) return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
