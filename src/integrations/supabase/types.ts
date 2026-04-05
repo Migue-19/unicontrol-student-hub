@@ -214,7 +214,7 @@ export type Database = {
       }
       usuarios: {
         Row: {
-          carrera_id: string
+          carrera_id: string | null
           codigo_estudiantil: string
           created_at: string
           facultad_id: string | null
@@ -224,7 +224,7 @@ export type Database = {
           tutorial_visto: boolean
         }
         Insert: {
-          carrera_id: string
+          carrera_id?: string | null
           codigo_estudiantil: string
           created_at?: string
           facultad_id?: string | null
@@ -234,7 +234,7 @@ export type Database = {
           tutorial_visto?: boolean
         }
         Update: {
-          carrera_id?: string
+          carrera_id?: string | null
           codigo_estudiantil?: string
           created_at?: string
           facultad_id?: string | null
