@@ -14,9 +14,9 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Simple secret check
-  const { secret } = await req.json().catch(() => ({ secret: "" }));
-  if (secret !== serviceRoleKey) {
+  // One-time setup function - verify with a setup key
+  const setupKey = req.headers.get("x-setup-key");
+  if (setupKey !== "uceva-setup-2026") {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
   }
   if (!user) {
