@@ -88,5 +88,5 @@ export async function fetchCargaActual(userId: string): Promise<CargaAcademica |
     .maybeSingle();
 
   if (error) throw error;
-  return data as CargaAcademica | null;
+  return data as unknown as CargaAcademica | null;
 }
