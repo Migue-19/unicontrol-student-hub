@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, XCircle, Loader2 } from "lucide-react";
-import { ActiveEnrollment, cancelEnrollment, fetchActiveEnrollments } from "@/services/inscripcionesService";
+import { ActiveEnrollment, cancelEnrollment, fetchActiveEnrollments, fetchCargaActual } from "@/services/inscripcionesService";
 
 export default function CancelSubjects() {
   const { profile } = useAuth();
@@ -14,61 +14,42 @@ export default function CancelSubjects() {
   const [enrolled, setEnrolled] = useState<ActiveEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [hasPendingLoad, setHasPendingLoad] = useState(false);
 
-  const fetchEnrolled = async ({ throwOnError = false }: { throwOnError?: boolean } = {}): Promise<ActiveEnrollment[]> => {
-    if (!profile) {
-      setEnrolled([]);
-      setLoading(false);
-      return [];
-    }
-
+  const fetchEnrolled = async () => {
+    if (!profile) return;
     setLoading(true);
-
     try {
-      const activeEnrollments = await fetchActiveEnrollments(profile.id);
+      const [activeEnrollments, carga] = await Promise.all([
+        fetchActiveEnrollments(profile.id),
+        fetchCargaActual(profile.id),
+      ]);
       setEnrolled(activeEnrollments);
-      return activeEnrollments;
+      setHasPendingLoad(carga?.estado === "pendiente");
     } catch (error) {
       console.error("[CancelSubjects] fetchEnrolled error:", error);
-      setEnrolled([]);
-
-      if (throwOnError) {
-        throw error;
-      }
-
       toast({
         title: "Error al cargar materias",
-        description: "No fue posible sincronizar tus materias desde Supabase.",
+        description: "No fue posible sincronizar tus materias.",
         variant: "destructive",
       });
-
-      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void fetchEnrolled();
-  }, [profile]);
+  useEffect(() => { fetchEnrolled(); }, [profile]);
 
   const handleCancel = async (materiaId: string) => {
     if (!profile) return;
-
     setCancelling(materiaId);
-
     try {
       const result = await cancelEnrollment(materiaId);
       setEnrolled(result.enrollments);
-
-      toast({
-        title: "Materia cancelada correctamente",
-        description: result.message,
-      });
+      toast({ title: "Materia cancelada", description: result.message });
     } catch (error) {
-      console.error("[CancelSubjects] handleCancel error:", error);
       toast({
-        title: "Error al cancelar materia",
+        title: "Error al cancelar",
         description: error instanceof Error ? error.message : "Error desconocido",
         variant: "destructive",
       });
@@ -87,8 +68,16 @@ export default function CancelSubjects() {
           <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
             <XCircle className="h-7 w-7 text-destructive" /> Cancelar Materias
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Solicita la cancelación de tus materias. Un coordinador revisará tu solicitud.</p>
+          <p className="text-muted-foreground text-sm mt-1">Elimina materias de tu carga académica.</p>
         </div>
+
+        {hasPendingLoad && (
+          <Card className="glass-card mb-6 animate-fade-in border-warning/30">
+            <CardContent className="py-4 text-center text-warning text-sm">
+              ⏳ Tu carga académica está pendiente de aprobación. No puedes modificar materias hasta que sea procesada.
+            </CardContent>
+          </Card>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -112,7 +101,7 @@ export default function CancelSubjects() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {enrolled.filter(e => e.estado === "inscrita").map((e) => (
+                  {enrolled.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="font-mono text-xs">{e.codigo}</TableCell>
                       <TableCell className="font-medium">{e.nombre}</TableCell>
@@ -123,11 +112,11 @@ export default function CancelSubjects() {
                           size="sm"
                           variant="destructive"
                           onClick={() => handleCancel(e.materia_id)}
-                          disabled={cancelling === e.materia_id}
+                          disabled={cancelling === e.materia_id || hasPendingLoad}
                           className="gap-1"
                         >
                           {cancelling === e.materia_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                          Solicitar Cancelación
+                          Cancelar
                         </Button>
                       </TableCell>
                     </TableRow>

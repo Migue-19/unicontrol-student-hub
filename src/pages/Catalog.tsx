@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/hooks/use-toast";
 import { BookPlus, Filter, Loader2 } from "lucide-react";
@@ -21,9 +22,11 @@ export default function Catalog() {
   const { toast } = useToast();
   const [semestre, setSemestre] = useState<string>("user");
   const [subjects, setSubjects] = useState<Materia[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<Map<string, string>>(new Map());
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
+  const [totalCredits, setTotalCredits] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [hasPendingLoad, setHasPendingLoad] = useState(false);
 
   const fetchData = async () => {
     if (!profile) return;
@@ -35,15 +38,22 @@ export default function Catalog() {
       query = query.eq("semestre", sem);
     }
 
-    const [{ data: materias }, { data: inscripciones }] = await Promise.all([
+    const [{ data: materias }, { data: inscripciones }, { data: cargas }] = await Promise.all([
       query.order("semestre").order("codigo"),
-      supabase.from("inscripciones").select("materia_id, estado").eq("usuario_id", profile.id).in("estado", ["inscrita", "pendiente"]),
+      supabase.from("inscripciones").select("materia_id, materias(creditos)").eq("usuario_id", profile.id).eq("estado", "inscrita"),
+      supabase.from("cargas_academicas" as any).select("estado").eq("usuario_id", profile.id).eq("estado", "pendiente").limit(1),
     ]);
 
     setSubjects((materias || []) as Materia[]);
-    const enrolledMap = new Map<string, string>();
-    (inscripciones || []).forEach((i: any) => enrolledMap.set(i.materia_id, i.estado));
-    setEnrolledIds(enrolledMap);
+    const enrolled = new Set<string>();
+    let credits = 0;
+    (inscripciones || []).forEach((i: any) => {
+      enrolled.add(i.materia_id);
+      credits += (i.materias as any)?.creditos || 0;
+    });
+    setEnrolledIds(enrolled);
+    setTotalCredits(credits);
+    setHasPendingLoad(((cargas as any[]) || []).length > 0);
     setLoading(false);
   };
 
@@ -75,6 +85,20 @@ export default function Catalog() {
           <h1 className="font-display text-2xl font-bold text-foreground">Catálogo de Materias</h1>
           <p className="text-muted-foreground text-sm mt-1">Materias de tu carrera: {profile?.carrera_nombre}</p>
         </div>
+
+        {/* Credits bar */}
+        <Card className="glass-card mb-6 animate-fade-in">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Créditos inscritos</span>
+              <span className="font-display font-bold text-foreground">{totalCredits} / 21</span>
+            </div>
+            <Progress value={(totalCredits / 21) * 100} className="h-3" />
+            {hasPendingLoad && (
+              <p className="text-xs text-warning mt-2">⏳ Tu carga académica está pendiente de aprobación. No puedes modificar materias.</p>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="glass-card mb-6 animate-fade-in" style={{ animationDelay: "100ms" }}>
           <CardHeader className="pb-3">
@@ -123,9 +147,7 @@ export default function Catalog() {
                 </TableHeader>
                 <TableBody>
                   {subjects.map((s) => {
-                    const status = enrolledIds.get(s.id);
-                    const isEnrolled = status === "inscrita";
-                    const isPending = status === "pendiente";
+                    const isEnrolled = enrolledIds.has(s.id);
                     const noSlots = s.cupos_disponibles === 0;
                     return (
                       <TableRow key={s.id}>
@@ -137,8 +159,6 @@ export default function Catalog() {
                         <TableCell className="text-center">
                           {isEnrolled ? (
                             <Badge className="bg-primary/10 text-primary border-0">Inscrito</Badge>
-                          ) : isPending ? (
-                            <Badge className="bg-warning/10 text-warning border-0">Pendiente</Badge>
                           ) : noSlots ? (
                             <Badge variant="destructive">Sin cupos</Badge>
                           ) : (
@@ -149,11 +169,11 @@ export default function Catalog() {
                           <Button
                             size="sm"
                             onClick={() => handleEnroll(s.id)}
-                            disabled={isEnrolled || isPending || noSlots || enrolling === s.id}
+                            disabled={isEnrolled || noSlots || enrolling === s.id || hasPendingLoad}
                             className="gap-1"
                           >
                             {enrolling === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookPlus className="h-3.5 w-3.5" />}
-                            {isPending ? "Pendiente" : "Inscribir"}
+                            Inscribir
                           </Button>
                         </TableCell>
                       </TableRow>
