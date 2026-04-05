@@ -19,9 +19,6 @@ Deno.serve(async (req) => {
   if (setupKey !== "uceva-setup-2026") {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
   }
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
-  }
 
   const admins = [
     {
