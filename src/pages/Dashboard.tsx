@@ -2,8 +2,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, GraduationCap, User, XCircle } from "lucide-react";
+import { BookOpen, GraduationCap, User, XCircle, Mail } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 
 export default function Dashboard() {
@@ -11,20 +13,37 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [enrolledCount, setEnrolledCount] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
+  const [cargaEstado, setCargaEstado] = useState<string | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
-    supabase
-      .from("inscripciones")
-      .select("materia_id, materias(creditos)")
-      .eq("usuario_id", profile.id)
-      .eq("estado", "inscrita")
-      .then(({ data }) => {
-        if (data) {
-          setEnrolledCount(data.length);
-          setTotalCredits(data.reduce((sum, d) => sum + ((d.materias as any)?.creditos || 0), 0));
-        }
-      });
+    Promise.all([
+      supabase
+        .from("inscripciones")
+        .select("materia_id, materias(creditos)")
+        .eq("usuario_id", profile.id)
+        .eq("estado", "inscrita"),
+      supabase
+        .from("cargas_academicas" as any)
+        .select("estado")
+        .eq("usuario_id", profile.id)
+        .order("fecha_solicitud", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("mensajes" as any)
+        .select("id")
+        .eq("receptor_id", profile.id)
+        .eq("leido", false),
+    ]).then(([{ data: inscs }, { data: carga }, { data: msgs }]) => {
+      if (inscs) {
+        setEnrolledCount(inscs.length);
+        setTotalCredits(inscs.reduce((sum, d) => sum + ((d.materias as any)?.creditos || 0), 0));
+      }
+      setCargaEstado((carga as any)?.estado || null);
+      setUnreadMessages((msgs as any[])?.length || 0);
+    });
   }, [profile]);
 
   if (!profile) return null;
@@ -33,7 +52,8 @@ export default function Dashboard() {
     { title: "Catálogo de Materias", desc: "Consulta e inscribe materias", icon: BookOpen, path: "/catalog", color: "bg-primary/10 text-primary" },
     { title: "Mis Materias", desc: `${enrolledCount} inscritas · ${totalCredits} créditos`, icon: GraduationCap, path: "/my-subjects", color: "bg-accent text-accent-foreground" },
     { title: "Cancelar Materias", desc: "Gestiona tu carga académica", icon: XCircle, path: "/cancel-subjects", color: "bg-destructive/10 text-destructive" },
-    { title: "Mi Perfil", desc: "Datos personales y configuración", icon: User, path: "/profile", color: "bg-secondary text-secondary-foreground" },
+    { title: "Mensajes", desc: unreadMessages > 0 ? `${unreadMessages} sin leer` : "Coordinación académica", icon: Mail, path: "/messages", color: "bg-secondary text-secondary-foreground" },
+    { title: "Mi Perfil", desc: "Datos personales y configuración", icon: User, path: "/profile", color: "bg-muted text-muted-foreground" },
   ];
 
   return (
@@ -49,7 +69,26 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Credits bar */}
+        <Card className="glass-card mb-6 animate-fade-in">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Créditos inscritos</span>
+              <span className="font-display font-bold text-lg text-foreground">{totalCredits} / 21</span>
+            </div>
+            <Progress value={(totalCredits / 21) * 100} className="h-3" />
+            {cargaEstado && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Estado de carga:</span>
+                {cargaEstado === "pendiente" && <Badge className="bg-warning/10 text-warning border-warning/20">Pendiente</Badge>}
+                {cargaEstado === "aprobada" && <Badge className="bg-primary/10 text-primary border-primary/20">Aprobada</Badge>}
+                {cargaEstado === "rechazada" && <Badge variant="destructive">Rechazada</Badge>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card, i) => (
             <Card
               key={card.title}
@@ -69,26 +108,6 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
-
-        {enrolledCount > 0 && (
-          <div className="mt-8 animate-fade-in" style={{ animationDelay: "400ms" }}>
-            <h2 className="font-display text-xl font-semibold mb-4">Resumen de Inscripciones</h2>
-            <Card className="glass-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-muted-foreground">Créditos inscritos</span>
-                  <span className="font-display font-bold text-lg text-foreground">{totalCredits} / 21</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-3">
-                  <div
-                    className="bg-primary rounded-full h-3 transition-all duration-500"
-                    style={{ width: `${(totalCredits / 21) * 100}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </main>
     </div>
   );
