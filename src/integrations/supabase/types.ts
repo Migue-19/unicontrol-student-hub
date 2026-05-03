@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      carga_inscripciones: {
+        Row: {
+          carga_id: string
+          comentario: string | null
+          estado: Database["public"]["Enums"]["estado_inscripcion"]
+          id: string
+          inscripcion_id: string
+          resuelto_at: string | null
+          resuelto_por: string | null
+        }
+        Insert: {
+          carga_id: string
+          comentario?: string | null
+          estado?: Database["public"]["Enums"]["estado_inscripcion"]
+          id?: string
+          inscripcion_id: string
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+        }
+        Update: {
+          carga_id?: string
+          comentario?: string | null
+          estado?: Database["public"]["Enums"]["estado_inscripcion"]
+          id?: string
+          inscripcion_id?: string
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carga_inscripciones_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "cargas_academicas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carga_inscripciones_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "inscripciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cargas_academicas: {
         Row: {
           admin_id: string | null
@@ -22,6 +67,8 @@ export type Database = {
           fecha_respuesta: string | null
           fecha_solicitud: string
           id: string
+          numero_orden: number | null
+          total_creditos: number | null
           usuario_id: string
         }
         Insert: {
@@ -31,6 +78,8 @@ export type Database = {
           fecha_respuesta?: string | null
           fecha_solicitud?: string
           id?: string
+          numero_orden?: number | null
+          total_creditos?: number | null
           usuario_id: string
         }
         Update: {
@@ -40,61 +89,175 @@ export type Database = {
           fecha_respuesta?: string | null
           fecha_solicitud?: string
           id?: string
+          numero_orden?: number | null
+          total_creditos?: number | null
           usuario_id?: string
         }
         Relationships: []
       }
-      carreras: {
+      facultades: {
         Row: {
-          facultad_id: string
           id: string
+          institucion_id: string | null
           nombre: string
         }
         Insert: {
-          facultad_id: string
           id?: string
+          institucion_id?: string | null
           nombre: string
         }
         Update: {
-          facultad_id?: string
           id?: string
+          institucion_id?: string | null
           nombre?: string
         }
         Relationships: [
           {
-            foreignKeyName: "carreras_facultad_id_fkey"
-            columns: ["facultad_id"]
+            foreignKeyName: "facultades_institucion_id_fkey"
+            columns: ["institucion_id"]
             isOneToOne: false
-            referencedRelation: "facultades"
+            referencedRelation: "instituciones"
             referencedColumns: ["id"]
           },
         ]
       }
-      facultades: {
+      historial_acciones: {
         Row: {
+          accion: Database["public"]["Enums"]["tipo_accion_historial"]
+          actor_id: string | null
+          actor_rol: Database["public"]["Enums"]["app_role"] | null
+          carga_id: string | null
+          created_at: string
+          descripcion: string | null
           id: string
-          nombre: string
+          inscripcion_id: string | null
+          materia_id: string | null
+          metadata: Json | null
+          usuario_id: string
         }
         Insert: {
+          accion: Database["public"]["Enums"]["tipo_accion_historial"]
+          actor_id?: string | null
+          actor_rol?: Database["public"]["Enums"]["app_role"] | null
+          carga_id?: string | null
+          created_at?: string
+          descripcion?: string | null
           id?: string
-          nombre: string
+          inscripcion_id?: string | null
+          materia_id?: string | null
+          metadata?: Json | null
+          usuario_id: string
         }
         Update: {
+          accion?: Database["public"]["Enums"]["tipo_accion_historial"]
+          actor_id?: string | null
+          actor_rol?: Database["public"]["Enums"]["app_role"] | null
+          carga_id?: string | null
+          created_at?: string
+          descripcion?: string | null
           id?: string
-          nombre?: string
+          inscripcion_id?: string | null
+          materia_id?: string | null
+          metadata?: Json | null
+          usuario_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "historial_acciones_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "cargas_academicas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_acciones_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_acciones_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_acciones_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importaciones_estudiantes: {
+        Row: {
+          codigo_estudiantil: string
+          created_at: string
+          email: string
+          error_mensaje: string | null
+          estado_importacion: string | null
+          id: string
+          importado_por: string | null
+          nombre: string
+          programa_id: string | null
+          programa_nombre: string | null
+          semestre_actual: number | null
+          usuario_creado_id: string | null
+        }
+        Insert: {
+          codigo_estudiantil: string
+          created_at?: string
+          email: string
+          error_mensaje?: string | null
+          estado_importacion?: string | null
+          id?: string
+          importado_por?: string | null
+          nombre: string
+          programa_id?: string | null
+          programa_nombre?: string | null
+          semestre_actual?: number | null
+          usuario_creado_id?: string | null
+        }
+        Update: {
+          codigo_estudiantil?: string
+          created_at?: string
+          email?: string
+          error_mensaje?: string | null
+          estado_importacion?: string | null
+          id?: string
+          importado_por?: string | null
+          nombre?: string
+          programa_id?: string | null
+          programa_nombre?: string | null
+          semestre_actual?: number | null
+          usuario_creado_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importaciones_estudiantes_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inscripciones: {
         Row: {
           admin_id: string | null
           comentario_admin: string | null
           created_at: string
+          cupo_reservado: boolean | null
           estado: string
+          estado_v2: Database["public"]["Enums"]["estado_inscripcion"] | null
           fecha_respuesta: string | null
           fecha_solicitud: string | null
           id: string
           materia_id: string
+          orden_solicitud: number | null
           tipo: string | null
           usuario_id: string
         }
@@ -102,11 +265,14 @@ export type Database = {
           admin_id?: string | null
           comentario_admin?: string | null
           created_at?: string
+          cupo_reservado?: boolean | null
           estado?: string
+          estado_v2?: Database["public"]["Enums"]["estado_inscripcion"] | null
           fecha_respuesta?: string | null
           fecha_solicitud?: string | null
           id?: string
           materia_id: string
+          orden_solicitud?: number | null
           tipo?: string | null
           usuario_id: string
         }
@@ -114,11 +280,14 @@ export type Database = {
           admin_id?: string | null
           comentario_admin?: string | null
           created_at?: string
+          cupo_reservado?: boolean | null
           estado?: string
+          estado_v2?: Database["public"]["Enums"]["estado_inscripcion"] | null
           fecha_respuesta?: string | null
           fecha_solicitud?: string | null
           id?: string
           materia_id?: string
+          orden_solicitud?: number | null
           tipo?: string | null
           usuario_id?: string
         }
@@ -139,46 +308,173 @@ export type Database = {
           },
         ]
       }
+      instituciones: {
+        Row: {
+          ciudad: string | null
+          created_at: string
+          direccion: string | null
+          email: string | null
+          id: string
+          nit: string | null
+          nombre: string
+          sigla: string
+          telefono: string | null
+          website: string | null
+        }
+        Insert: {
+          ciudad?: string | null
+          created_at?: string
+          direccion?: string | null
+          email?: string | null
+          id?: string
+          nit?: string | null
+          nombre: string
+          sigla: string
+          telefono?: string | null
+          website?: string | null
+        }
+        Update: {
+          ciudad?: string | null
+          created_at?: string
+          direccion?: string | null
+          email?: string | null
+          id?: string
+          nit?: string | null
+          nombre?: string
+          sigla?: string
+          telefono?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       materias: {
         Row: {
-          carrera_id: string
+          activa: boolean | null
           codigo: string
+          codigo_interno: string | null
+          componente: string | null
           creditos: number
           cupos_disponibles: number
           cupos_totales: number
+          dias_semana: string[] | null
+          docente: string | null
+          es_compartida: boolean | null
+          es_electiva: boolean | null
+          hora_fin: string | null
+          hora_inicio: string | null
           horario: string
+          horas_semana: number | null
           id: string
           nombre: string
+          programa_id: string
+          salon: string | null
           semestre: number
         }
         Insert: {
-          carrera_id: string
+          activa?: boolean | null
           codigo: string
+          codigo_interno?: string | null
+          componente?: string | null
           creditos: number
           cupos_disponibles?: number
           cupos_totales?: number
+          dias_semana?: string[] | null
+          docente?: string | null
+          es_compartida?: boolean | null
+          es_electiva?: boolean | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
           horario: string
+          horas_semana?: number | null
           id?: string
           nombre: string
+          programa_id: string
+          salon?: string | null
           semestre: number
         }
         Update: {
-          carrera_id?: string
+          activa?: boolean | null
           codigo?: string
+          codigo_interno?: string | null
+          componente?: string | null
           creditos?: number
           cupos_disponibles?: number
           cupos_totales?: number
+          dias_semana?: string[] | null
+          docente?: string | null
+          es_compartida?: boolean | null
+          es_electiva?: boolean | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
           horario?: string
+          horas_semana?: number | null
           id?: string
           nombre?: string
+          programa_id?: string
+          salon?: string | null
           semestre?: number
         }
         Relationships: [
           {
-            foreignKeyName: "materias_carrera_id_fkey"
-            columns: ["carrera_id"]
+            foreignKeyName: "materias_programa_id_fkey"
+            columns: ["programa_id"]
             isOneToOne: false
-            referencedRelation: "carreras"
+            referencedRelation: "programas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materias_relaciones: {
+        Row: {
+          bidireccional: boolean
+          creado_por: string | null
+          created_at: string
+          id: string
+          materia_id_a: string
+          materia_id_b: string
+          materia_maestra_id: string | null
+          tipo: Database["public"]["Enums"]["tipo_equivalencia"]
+        }
+        Insert: {
+          bidireccional?: boolean
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          materia_id_a: string
+          materia_id_b: string
+          materia_maestra_id?: string | null
+          tipo: Database["public"]["Enums"]["tipo_equivalencia"]
+        }
+        Update: {
+          bidireccional?: boolean
+          creado_por?: string | null
+          created_at?: string
+          id?: string
+          materia_id_a?: string
+          materia_id_b?: string
+          materia_maestra_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_equivalencia"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "materias_relaciones_materia_id_a_fkey"
+            columns: ["materia_id_a"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materias_relaciones_materia_id_b_fkey"
+            columns: ["materia_id_b"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materias_relaciones_materia_maestra_id_fkey"
+            columns: ["materia_maestra_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
             referencedColumns: ["id"]
           },
         ]
@@ -224,6 +520,115 @@ export type Database = {
           },
         ]
       }
+      prerequisitos: {
+        Row: {
+          id: string
+          materia_id: string
+          prerequisito_id: string
+        }
+        Insert: {
+          id?: string
+          materia_id: string
+          prerequisito_id: string
+        }
+        Update: {
+          id?: string
+          materia_id?: string
+          prerequisito_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prerequisitos_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prerequisitos_prerequisito_id_fkey"
+            columns: ["prerequisito_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programas: {
+        Row: {
+          facultad_id: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          facultad_id: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          facultad_id?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programas_facultad_id_fkey"
+            columns: ["facultad_id"]
+            isOneToOne: false
+            referencedRelation: "facultades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      semestres_academicos: {
+        Row: {
+          activo: boolean
+          adicion_fin: string | null
+          adicion_inicio: string | null
+          created_at: string
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          inscripcion_fin: string
+          inscripcion_inicio: string
+          institucion_id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          adicion_fin?: string | null
+          adicion_inicio?: string | null
+          created_at?: string
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          inscripcion_fin: string
+          inscripcion_inicio: string
+          institucion_id: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          adicion_fin?: string | null
+          adicion_inicio?: string | null
+          created_at?: string
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          inscripcion_fin?: string
+          inscripcion_inicio?: string
+          institucion_id?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semestres_academicos_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -244,48 +649,48 @@ export type Database = {
       }
       usuarios: {
         Row: {
-          carrera_id: string | null
           codigo_estudiantil: string
           created_at: string
           facultad_id: string | null
           id: string
           nombre: string
+          programa_id: string | null
           semestre_actual: number
           tutorial_visto: boolean
         }
         Insert: {
-          carrera_id?: string | null
           codigo_estudiantil: string
           created_at?: string
           facultad_id?: string | null
           id: string
           nombre: string
+          programa_id?: string | null
           semestre_actual?: number
           tutorial_visto?: boolean
         }
         Update: {
-          carrera_id?: string | null
           codigo_estudiantil?: string
           created_at?: string
           facultad_id?: string | null
           id?: string
           nombre?: string
+          programa_id?: string | null
           semestre_actual?: number
           tutorial_visto?: boolean
         }
         Relationships: [
           {
-            foreignKeyName: "usuarios_carrera_id_fkey"
-            columns: ["carrera_id"]
-            isOneToOne: false
-            referencedRelation: "carreras"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "usuarios_facultad_id_fkey"
             columns: ["facultad_id"]
             isOneToOne: false
             referencedRelation: "facultades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuarios_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
             referencedColumns: ["id"]
           },
         ]
@@ -330,6 +735,21 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "estudiante"
+      estado_inscripcion:
+        | "tentativa"
+        | "confirmada"
+        | "aprobada"
+        | "rechazada"
+        | "cancelada"
+      tipo_accion_historial:
+        | "inscripcion_tentativa"
+        | "inscripcion_cancelada"
+        | "carga_confirmada"
+        | "carga_aprobada"
+        | "carga_rechazada"
+        | "materia_aprobada"
+        | "materia_rechazada"
+      tipo_equivalencia: "compartida" | "equivalente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -458,6 +878,23 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "estudiante"],
+      estado_inscripcion: [
+        "tentativa",
+        "confirmada",
+        "aprobada",
+        "rechazada",
+        "cancelada",
+      ],
+      tipo_accion_historial: [
+        "inscripcion_tentativa",
+        "inscripcion_cancelada",
+        "carga_confirmada",
+        "carga_aprobada",
+        "carga_rechazada",
+        "materia_aprobada",
+        "materia_rechazada",
+      ],
+      tipo_equivalencia: ["compartida", "equivalente"],
     },
   },
 } as const
